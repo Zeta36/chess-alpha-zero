@@ -1,3 +1,4 @@
+python-chess==0.21.2
 appnope==0.1.0
 bleach==1.5.0
 click==6.7
