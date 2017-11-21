@@ -1,5 +1,6 @@
 uvloop
 profilehooks
+python-chess==0.21.2
 appnope==0.1.0
 bleach==1.5.0
 click==6.7
@@ -56,4 +57,3 @@ traitlets==4.3.2
 wcwidth==0.1.7
 Werkzeug==0.12.2
 widgetsnbextension==3.0.6
-wxPython==4.0.0b2
