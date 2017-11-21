@@ -3,6 +3,12 @@ from asyncio.queues import Queue
 from collections import defaultdict, namedtuple
 from logging import getLogger
 import asyncio
+import uvloop
+asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+
+from profilehooks import profile
+
+import time
 
 import numpy as np
 import chess
@@ -25,6 +31,8 @@ class ChessPlayer:
         self.model = model
         self.play_config = play_config or self.config.play
         self.api = ChessModelAPI(self.config, self.model)
+        
+        self.move_lookup = {k:v for k,v  in zip((chess.Move.from_uci(mov) for mov in self.config.labels),range(len(self.config.labels)))}
 
         self.labels_n = config.n_labels
         self.var_n = defaultdict(lambda: np.zeros((self.labels_n,)))
@@ -60,7 +68,7 @@ class ChessPlayer:
                 break
 
         # this is for play_gui, not necessary when training.
-        self.thinking_history[env.observation] = HistoryItem(action, policy, list(self.var_q[key]), list(self.var_n[key]))
+        #self.thinking_history[env.observation] = HistoryItem(action, policy, list(self.var_q[key]), list(self.var_n[key]))
 
         if self.play_config.resign_threshold is not None and \
             env.score_current() <= self.play_config.resign_threshold and \
@@ -73,7 +81,9 @@ class ChessPlayer:
     def ask_thought_about(self, board) -> HistoryItem:
         return self.thinking_history.get(board)
 
+    @profile
     def search_moves(self, board):
+        start = time.time()
         loop = self.loop
         self.running_simulation_num = 0
 
@@ -84,6 +94,9 @@ class ChessPlayer:
 
         coroutine_list.append(self.prediction_worker())
         loop.run_until_complete(asyncio.gather(*coroutine_list))
+        logger.debug(f"Search time per move: {time.time()-start}")
+        # uncomment to see profile result per move
+        # raise
 
     async def start_search_my_move(self, board):
         self.running_simulation_num += 1
@@ -124,20 +137,24 @@ class ChessPlayer:
                 return -leaf_v  # Value for white == -Value for white
 
         action_t = self.select_action_q_and_u(env, is_root_node)
+        
         _, _ = env.step(self.config.labels[action_t])
 
         virtual_loss = self.config.play.virtual_loss
         self.var_n[key][action_t] += virtual_loss
         self.var_w[key][action_t] -= virtual_loss
+        
         leaf_v = await self.search_my_move(env)  # next move
-
+       
         # on returning search path
         # update: N, W, Q, U
         n = self.var_n[key][action_t] = self.var_n[key][action_t] - virtual_loss + 1
         w = self.var_w[key][action_t] = self.var_w[key][action_t] + virtual_loss + leaf_v
         self.var_q[key][action_t] = w / n
+            
         return leaf_v
 
+    @profile
     async def expand_and_evaluate(self, env):
         """expand new leaf
 
@@ -175,7 +192,7 @@ class ChessPlayer:
                 await asyncio.sleep(self.config.play.prediction_worker_sleep_sec)
                 continue
             item_list = [q.get_nowait() for _ in range(q.qsize())]  # type: list[QueueItem]
-            # logger.debug(f"predicting {len(item_list)} items")
+            #logger.debug(f"predicting {len(item_list)} items")
             data = np.array([x.state for x in item_list])
             policy_ary, value_ary = self.api.predict(data)
             for p, v, item in zip(policy_ary, value_ary, item_list):
@@ -204,7 +221,7 @@ class ChessPlayer:
         env = ChessEnv().update(board)
         key = self.counter_key(env)
         if env.turn < pc.change_tau_turn:
-            return self.var_n[key] / np.sum(self.var_n[key])  # tau = 1
+            return self.var_n[key] / (np.sum(self.var_n[key])+1e-8)  # tau = 1
         else:
             action = np.argmax(self.var_n[key])  # tau = 0
             ret = np.zeros(self.labels_n)
@@ -218,8 +235,12 @@ class ChessPlayer:
     def select_action_q_and_u(self, env, is_root_node):
         key = self.counter_key(env)
 
-        legal_moves = env.board.legal_moves
-        legal_labels = [int(chess.Move.from_uci(mov) in legal_moves) for mov in self.config.labels]
+        """Bottlenecks are these two lines"""
+        legal_moves = [self.move_lookup[mov] for mov in env.board.legal_moves]
+        legal_labels = np.zeros(len(self.config.labels))
+        #logger.debug(legal_moves)
+        legal_labels[legal_moves] = 1
+        
 
         # noinspection PyUnresolvedReferences
         xx_ = np.sqrt(np.sum(self.var_n[key]))  # SQRT of sum(N(s, b); for all b)
