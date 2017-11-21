@@ -31,6 +31,8 @@ class ChessPlayer:
         self.model = model
         self.play_config = play_config or self.config.play
         self.api = ChessModelAPI(self.config, self.model)
+        
+        self.move_lookup = {k:v for k,v  in zip((chess.Move.from_uci(mov) for mov in self.config.labels),range(len(self.config.labels)))}
 
         self.labels_n = config.n_labels
         self.var_n = defaultdict(lambda: np.zeros((self.labels_n,)))
@@ -136,30 +138,23 @@ class ChessPlayer:
 
         action_t = self.select_action_q_and_u(env, is_root_node)
         
-        """Check legal move after selection"""
-        legal_moves = env.board.legal_moves
-        legal = chess.Move.from_uci(self.config.labels[action_t]) in legal_moves
-        
-        if legal:
-            _, _ = env.step(self.config.labels[action_t])
+        _, _ = env.step(self.config.labels[action_t])
 
-            virtual_loss = self.config.play.virtual_loss
-            self.var_n[key][action_t] += virtual_loss
-            self.var_w[key][action_t] -= virtual_loss
-            
-            leaf_v = await self.search_my_move(env)  # next move
-           
-            # on returning search path
-            # update: N, W, Q, U
-            n = self.var_n[key][action_t] = self.var_n[key][action_t] - virtual_loss + 1
-            w = self.var_w[key][action_t] = self.var_w[key][action_t] + virtual_loss + leaf_v
-            self.var_q[key][action_t] = w / n
-        else:
-            """If illegal, return -1 to indicate loss"""
-            leaf_v = -1
+        virtual_loss = self.config.play.virtual_loss
+        self.var_n[key][action_t] += virtual_loss
+        self.var_w[key][action_t] -= virtual_loss
+        
+        leaf_v = await self.search_my_move(env)  # next move
+       
+        # on returning search path
+        # update: N, W, Q, U
+        n = self.var_n[key][action_t] = self.var_n[key][action_t] - virtual_loss + 1
+        w = self.var_w[key][action_t] = self.var_w[key][action_t] + virtual_loss + leaf_v
+        self.var_q[key][action_t] = w / n
             
         return leaf_v
 
+    @profile
     async def expand_and_evaluate(self, env):
         """expand new leaf
 
@@ -226,7 +221,7 @@ class ChessPlayer:
         env = ChessEnv().update(board)
         key = self.counter_key(env)
         if env.turn < pc.change_tau_turn:
-            return self.var_n[key] / np.sum(self.var_n[key])  # tau = 1
+            return self.var_n[key] / (np.sum(self.var_n[key])+1e-8)  # tau = 1
         else:
             action = np.argmax(self.var_n[key])  # tau = 0
             ret = np.zeros(self.labels_n)
@@ -241,8 +236,11 @@ class ChessPlayer:
         key = self.counter_key(env)
 
         """Bottlenecks are these two lines"""
-        #legal_moves = env.board.legal_moves
-        #legal_labels = [int(chess.Move.from_uci(mov) in legal_moves) for mov in self.config.labels]
+        legal_moves = [self.move_lookup[mov] for mov in env.board.legal_moves]
+        legal_labels = np.zeros(len(self.config.labels))
+        #logger.debug(legal_moves)
+        legal_labels[legal_moves] = 1
+        
 
         # noinspection PyUnresolvedReferences
         xx_ = np.sqrt(np.sum(self.var_n[key]))  # SQRT of sum(N(s, b); for all b)
@@ -255,10 +253,10 @@ class ChessPlayer:
 
         u_ = self.play_config.c_puct * p_ * xx_ / (1 + self.var_n[key])
         if env.board.turn == chess.WHITE:
-            v_ = (self.var_q[key] + u_ + 1000)# * legal_labels
+            v_ = (self.var_q[key] + u_ + 1000) * legal_labels
         else:
             # When enemy's selecting action, flip Q-Value.
-            v_ = (-self.var_q[key] + u_ + 1000)# * legal_labels
+            v_ = (-self.var_q[key] + u_ + 1000) * legal_labels
 
         # noinspection PyTypeChecker
         action_t = int(np.argmax(v_))
