@@ -19,7 +19,7 @@ class PlayDataConfig:
 
 class PlayConfig:
     def __init__(self):
-        self.simulation_num_per_move = 1000
+        self.simulation_num_per_move = 100
         self.thinking_loop = 5
         self.logging_thinking = False
         self.c_puct = 2
@@ -37,7 +37,7 @@ class PlayConfig:
 
 class TrainerConfig:
     def __init__(self):
-        self.batch_size = 64  # 2048
+        self.batch_size = 32  # 2048
         self.epoch_to_checkpoint = 1
         self.start_total_steps = 0
         self.save_model_steps = 2000
