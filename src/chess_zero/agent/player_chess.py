@@ -94,7 +94,7 @@ class ChessPlayer:
 
         coroutine_list.append(self.prediction_worker())
         loop.run_until_complete(asyncio.gather(*coroutine_list))
-        logger.debug(f"Search time per move: {time.time()-start}")
+        #logger.debug(f"Search time per move: {time.time()-start}")
         # uncomment to see profile result per move
         # raise
 
