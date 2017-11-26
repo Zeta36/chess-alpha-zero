@@ -3,8 +3,8 @@ class EvaluateConfig:
         self.game_num = 100  # 400
         self.replace_rate = 0.55
         self.play_config = PlayConfig()
-        self.play_config.simulation_num_per_move = 100
-        self.play_config.thinking_loop = 5
+        self.play_config.simulation_num_per_move = 200
+        self.play_config.thinking_loop = 1
         self.play_config.c_puct = 1
         self.play_config.change_tau_turn = 0
         self.play_config.noise_eps = 0
@@ -19,8 +19,8 @@ class PlayDataConfig:
 
 class PlayConfig:
     def __init__(self):
-        self.simulation_num_per_move = 100
-        self.thinking_loop = 5
+        self.simulation_num_per_move = 200
+        self.thinking_loop = 1
         self.logging_thinking = False
         self.c_puct = 2
         self.noise_eps = 0.25
@@ -47,6 +47,6 @@ class TrainerConfig:
 class ModelConfig:
     cnn_filter_num = 256
     cnn_filter_size = 3
-    res_layer_num = 10
+    res_layer_num = 7
     l2_reg = 1e-4
     value_fc_size = 256
