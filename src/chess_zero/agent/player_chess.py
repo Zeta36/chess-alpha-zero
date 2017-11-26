@@ -68,7 +68,7 @@ class ChessPlayer:
                 break
 
         # this is for play_gui, not necessary when training.
-        #self.thinking_history[env.observation] = HistoryItem(action, policy, list(self.var_q[key]), list(self.var_n[key]))
+        self.thinking_history[env.observation] = HistoryItem(action, policy, list(self.var_q[key]), list(self.var_n[key]))
 
         if self.play_config.resign_threshold is not None and \
             env.score_current() <= self.play_config.resign_threshold and \
