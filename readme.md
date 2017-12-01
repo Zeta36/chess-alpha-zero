@@ -16,6 +16,20 @@ Environment
 * tensorflow-gpu: 1.3.0
 * Keras: 2.0.8
 
+### New Distributed Training Pipeline
+
+Now it's possible to train the model in a distributed way. The only thing needed is to use the new parameter:
+
+* `--type distributed`: use mini config for testing, (see `src/chess_zero/configs/distributed.py`)
+
+So, in order to contribute to the distributed team you just need to run the three workers locally like this:
+
+```bash
+python src/chess_zero/run.py self --type distributed
+python src/chess_zero/run.py opt --type distributed
+python src/chess_zero/run.py eval --type distributed
+```
+
 Modules
 -------
 
