@@ -18,24 +18,16 @@ def start(config: Config):
     chess_model.start_game(human_is_black)
 
     while not env.done:
-        if env.board.turn == chess.BLACK:
-            if not human_is_black:
-                action = chess_model.move_by_ai(env)
-                print("IA moves to: " + action)
-            else:
-                action = chess_model.move_by_human(env)
-                print("You move to: " + action)
+        if (env.board.turn == chess.BLACK) == human_is_black:
+            action = chess_model.move_by_human(env)
+            print("You move to: " + action)
         else:
-            if human_is_black:
-                action = chess_model.move_by_ai(env)
-                print("IA moves to: " + action)
-            else:
-                action = chess_model.move_by_human(env)
-                print("You move to: " + action)
+            action = chess_model.move_by_ai(env)
+            print("AI moves to: " + action)
         board, info = env.step(action)
         env.render()
-        print("Board fen = " + board.fen())
+        print("Board FEN = " + board.fen())
 
-    print("\nEnd of the game.")
-    print("Game result:")
+    print("\nEnd of the game.") #spaces after this?
+    print("Game result:") #and this?
     print(env.board.result())

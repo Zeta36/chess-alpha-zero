@@ -37,7 +37,7 @@ def start():
 
     logger.info(f"config type: {config_type}")
 
-    if args.cmd == "self":
+    if args.cmd == 'self':
         from .worker import self_play
         return self_play.start(config)
     elif args.cmd == 'opt':

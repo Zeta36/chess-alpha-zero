@@ -31,9 +31,8 @@ class ChessPlayer:
         self.model = model
         self.play_config = play_config or self.config.play
         self.api = ChessModelAPI(self.config, self.model)
-        
-        self.move_lookup = {k:v for k,v  in zip((chess.Move.from_uci(mov) for mov in self.config.labels),range(len(self.config.labels)))}
 
+        self.move_lookup = {k:v for k,v in zip((chess.Move.from_uci(move) for move in self.config.labels),range(len(self.config.labels)))}
         self.labels_n = config.n_labels
         self.var_n = defaultdict(lambda: np.zeros((self.labels_n,)))
         self.var_w = defaultdict(lambda: np.zeros((self.labels_n,)))
@@ -137,21 +136,21 @@ class ChessPlayer:
                 return -leaf_v  # Value for white == -Value for white
 
         action_t = self.select_action_q_and_u(env, is_root_node)
-        
+
         _, _ = env.step(self.config.labels[action_t])
 
         virtual_loss = self.config.play.virtual_loss
         self.var_n[key][action_t] += virtual_loss
         self.var_w[key][action_t] -= virtual_loss
-        
+
         leaf_v = await self.search_my_move(env)  # next move
-       
+
         # on returning search path
         # update: N, W, Q, U
         n = self.var_n[key][action_t] = self.var_n[key][action_t] - virtual_loss + 1
         w = self.var_w[key][action_t] = self.var_w[key][action_t] + virtual_loss + leaf_v
         self.var_q[key][action_t] = w / n
-            
+
         return leaf_v
 
     @profile
@@ -169,10 +168,12 @@ class ChessPlayer:
         black_ary, white_ary = env.black_and_white_plane()
         state = [black_ary, white_ary] if env.board.turn == chess.BLACK else [white_ary, black_ary]
         future = await self.predict(np.array(state))  # type: Future
+
         await future
         leaf_p, leaf_v = future.result()
 
         self.var_p[key] = leaf_p  # P is value for next_player (black or white)
+
         self.expanded.add(key)
         self.now_expanding.remove(key)
         return float(leaf_v)
@@ -240,7 +241,7 @@ class ChessPlayer:
         legal_labels = np.zeros(len(self.config.labels))
         #logger.debug(legal_moves)
         legal_labels[legal_moves] = 1
-        
+
 
         # noinspection PyUnresolvedReferences
         xx_ = np.sqrt(np.sum(self.var_n[key]))  # SQRT of sum(N(s, b); for all b)

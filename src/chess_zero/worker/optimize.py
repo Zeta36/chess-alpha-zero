@@ -3,7 +3,7 @@ from datetime import datetime
 from logging import getLogger
 from time import sleep
 
-import keras.backend as K
+import keras.backend as k
 import numpy as np
 from keras.optimizers import SGD
 
@@ -13,7 +13,7 @@ from chess_zero.config import Config
 from chess_zero.lib import tf_util
 from chess_zero.lib.data_helper import get_game_data_filenames, read_game_data_from_file, \
     get_next_generation_model_dirs
-from chess_zero.lib.model_helpler import load_best_model_weight
+from chess_zero.lib.model_helper import load_best_model_weight
 from chess_zero.env.chess_env import ChessEnv
 import chess
 
@@ -89,7 +89,7 @@ class OptimizeWorker:
             lr = 1e-4
         else:
             lr = 2.5e-5  # means (1e-4 / 4): the paper batch size=2048, ours is 512.
-        K.set_value(self.optimizer.lr, lr)
+        k.set_value(self.optimizer.lr, lr)
         logger.debug(f"total step={total_steps}, set learning rate to {lr}")
 
     def save_current_model(self):

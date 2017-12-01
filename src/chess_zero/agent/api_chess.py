@@ -18,5 +18,3 @@ class ChessModelAPI:
             return policy[0], value[0]
         else:
             return policy, value
-
-

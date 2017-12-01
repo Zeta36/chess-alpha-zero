@@ -3,7 +3,7 @@ import json
 import os
 from logging import getLogger
 # noinspection PyPep8Naming
-import keras.backend as K
+import keras.backend as k
 
 from keras.engine.topology import Input
 from keras.engine.training import Model
@@ -103,7 +103,7 @@ class ChessModel:
 
 def objective_function_for_policy(y_true, y_pred):
     # can use categorical_crossentropy??
-    return K.sum(-y_true * K.log(y_pred + K.epsilon()), axis=-1)
+    return k.sum(-y_true * k.log(y_pred + k.epsilon()), axis=-1)
 
 
 def objective_function_for_value(y_true, y_pred):

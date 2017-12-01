@@ -3,7 +3,7 @@ from logging import getLogger
 from chess_zero.agent.player_chess import HistoryItem
 from chess_zero.agent.player_chess import ChessPlayer
 from chess_zero.config import Config
-from chess_zero.lib.model_helpler import load_best_model_weight
+from chess_zero.lib.model_helper import load_best_model_weight
 import chess
 
 logger = getLogger(__name__)
@@ -27,7 +27,7 @@ class PlayWithHuman:
         from chess_zero.agent.model_chess import ChessModel
         model = ChessModel(self.config)
         if not load_best_model_weight(model):
-            raise RuntimeError("best model not found!")
+            raise RuntimeError("Best model not found!")
         return model
 
     def move_by_ai(self, env):
@@ -35,17 +35,17 @@ class PlayWithHuman:
 
         self.last_history = self.ai.ask_thought_about(env.observation)
         self.last_evaluation = self.last_history.values[self.last_history.action]
-        logger.debug(f"evaluation by ai={self.last_evaluation}")
+        logger.debug(f"Evaluation by AI = {self.last_evaluation}")
 
         return action
 
     def move_by_human(self, env):
         while True:
             try:
-                movement = input('\nEnter your movement in UCI format(a1a2, b2b6,...): ')
-                if chess.Move.from_uci(movement) in env.board.legal_moves:
-                    return movement
+                move = input('\nEnter your move in UCI format (a1a2, b2b6, ...): ')
+                if chess.Move.from_uci(move) in env.board.legal_moves:
+                    return move
                 else:
-                    print("That is NOT a valid movement :(.")
+                    print("That is NOT a valid move :(.")
             except:
-                print("That is NOT a valid movement :(.")
+                print("That is NOT a valid move :(.")
