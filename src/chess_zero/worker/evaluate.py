@@ -9,7 +9,7 @@ from chess_zero.config import Config
 from chess_zero.env.chess_env import ChessEnv, Winner
 from chess_zero.lib import tf_util
 from chess_zero.lib.data_helper import get_next_generation_model_dirs
-from chess_zero.lib.model_helpler import save_as_best_model, load_best_model_weight
+from chess_zero.lib.model_helper import save_as_best_model, load_best_model_weight
 
 logger = getLogger(__name__)
 

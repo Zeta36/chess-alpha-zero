@@ -15,32 +15,31 @@ def create_uci_labels():
     letters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
     numbers = ['1', '2', '3', '4', '5', '6', '7', '8']
     promoted_to = ['q', 'r', 'b', 'n']
-    pairs = []
-    pairs_promoted = []
-    for l in letters:
-        for n in numbers:
-            pairs.append(l + n)
-            if n == '1' or n == '8':
-                for p in promoted_to:
-                    pairs_promoted.append(l + n + p)
 
-    for p1 in pairs:
-        for p2 in pairs:
-            if p1 != p2:
-                try:
-                    _ = chess.Move.from_uci(p1 + p2)
-                    labels_array.append(p1 + p2)
-                except:
-                    pass
-
-    for p1 in pairs:
-        for pro in pairs_promoted:
-            try:
-                _ = chess.Move.from_uci(p1 + pro)
-                labels_array.append(p1 + pro)
-            except:
-                pass
-
+    for l1 in range(8):
+        for n1 in range(8):
+            destinations = [(t, n1) for t in range(0,8)] + \
+                           [(l1, t) for t in range(0,8)] + \
+                           [(l1 + t, n1 + t) for t in range(-7,8)] + \
+                           [(l1 + t, n1 - t) for t in range(-7,8)] + \
+                           [(l1 + a, n1 + b) for (a, b) in [(-2, -1), (-1, -2), (-2, 1), (1, -2), (2, -1), (-1, 2), (2, 1), (1, 2)]]
+            for (l2, n2) in destinations:
+                if (l1, n1) != (l2, n2) and l2 in range(0,8) and n2 in range(0,8):
+                    move = letters[l1] + numbers[n1] + letters[l2] + numbers[n2]
+                    labels_array.append(move)
+    for l1 in range(8):
+        l = letters[l1]
+        for p in promoted_to:
+            labels_array.append(l + '2' + l + '1' + p)
+            labels_array.append(l + '7' + l + '8' + p)
+            if l1 > 0:
+                l_l = letters[l1 - 1]
+                labels_array.append(l + '2' + l_l + '1' + p)
+                labels_array.append(l + '7' + l_l + '8' + p)
+            if l1 < 7:
+                l_r = letters[l1 + 1]
+                labels_array.append(l + '2' + l_r + '1' + p)
+                labels_array.append(l + '7' + l_r + '8' + p)
     return labels_array
 
 

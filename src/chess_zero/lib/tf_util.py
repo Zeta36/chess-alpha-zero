@@ -7,7 +7,7 @@ def set_session_config(per_process_gpu_memory_fraction=None, allow_growth=None):
     :return:
     """
     import tensorflow as tf
-    import keras.backend as K
+    import keras.backend as k
 
     config = tf.ConfigProto(
         gpu_options=tf.GPUOptions(
@@ -16,4 +16,4 @@ def set_session_config(per_process_gpu_memory_fraction=None, allow_growth=None):
         )
     )
     sess = tf.Session(config=config)
-    K.set_session(sess)
+    k.set_session(sess)

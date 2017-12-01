@@ -62,14 +62,10 @@ class ChessEnv:
                 self.winner = Winner.black
             else:
                 val_black, val_white = self.score_board()
-                if self.turn == chess.BLACK and val_black > val_white:
+                if val_black > val_white:
                     self.winner = Winner.black
-                elif self.turn == chess.BLACK and val_black < val_white:
+                elif val_black < val_white:
                     self.winner = Winner.white
-                elif self.turn == chess.WHITE and val_white > val_black:
-                    self.winner = Winner.white
-                elif self.turn == chess.WHITE and val_white < val_black:
-                    self.winner = Winner.black
                 else:
                     self.winner = Winner.draw
 
@@ -83,7 +79,7 @@ class ChessEnv:
     def score_board(self):
         board_state = self.replace_tags()
         pieces_white = [val if val.isupper() and val != "1" else 0 for val in board_state.split(" ")[0]]
-        pieces_black = [val if not val.isupper() and val != "1" else 0 for val in board_state.split(" ")[0]]
+        pieces_black = [val if val.islower() and val != "1" else 0 for val in board_state.split(" ")[0]]
         val_white = 0.0
         val_black = 0.0
         for piece in pieces_white:
@@ -127,7 +123,7 @@ class ChessEnv:
         board_white = [ord(val) if val.isupper() and val != "1" else 0 for val in board_state.split(" ")[0]]
         board_white = np.reshape(board_white, (8, 8))
         # Only black plane
-        board_black = [ord(val) if not val.isupper() and val != "1" else 0 for val in board_state.split(" ")[0]]
+        board_black = [ord(val) if val.islower() and val != "1" else 0 for val in board_state.split(" ")[0]]
         board_black = np.reshape(board_black, (8, 8))
 
         return board_white, board_black
@@ -153,5 +149,3 @@ class ChessEnv:
     @property
     def observation(self):
         return self.board.fen()
-
-

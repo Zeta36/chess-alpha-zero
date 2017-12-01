@@ -8,14 +8,14 @@ from chess_zero.config import Config
 from chess_zero.env.chess_env import ChessEnv, Winner
 from chess_zero.lib import tf_util
 from chess_zero.lib.data_helper import get_game_data_filenames, write_game_data_to_file
-from chess_zero.lib.model_helpler import load_best_model_weight, save_as_best_model, \
+from chess_zero.lib.model_helper import load_best_model_weight, save_as_best_model, \
     reload_best_model_weight_if_changed
 
 logger = getLogger(__name__)
 
 
 def start(config: Config):
-    tf_util.set_session_config(per_process_gpu_memory_fraction=0.75)
+    tf_util.set_session_config(per_process_gpu_memory_fraction=0.5)
     return SelfPlayWorker(config, env=ChessEnv()).start()
 
 
@@ -107,5 +107,3 @@ class SelfPlayWorker:
             model.build()
             save_as_best_model(model)
         return model
-
-
