@@ -27,10 +27,13 @@ def reload_best_model_weight_if_changed(model):
     :param chess_zero.agent.model.ChessModel model:
     :return:
     """
-    logger.debug(f"start reload the best model if changed")
-    digest = model.fetch_digest(model.config.resource.model_best_weight_path)
-    if digest != model.digest:
+    if model.config.model.distributed:
         return load_best_model_weight(model)
+    else:
+        logger.debug(f"start reload the best model if changed")
+        digest = model.fetch_digest(model.config.resource.model_best_weight_path)
+        if digest != model.digest:
+            return load_best_model_weight(model)
 
-    logger.debug(f"the best model is not changed")
-    return False
+        logger.debug(f"the best model is not changed")
+        return False
