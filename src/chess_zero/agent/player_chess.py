@@ -50,6 +50,21 @@ class ChessPlayer:
 
         self.thinking_history = {}  # for fun
 
+    def sl_action(self, board, action):
+
+        env = ChessEnv().update(board)
+
+        policy = np.zeros(self.labels_n)
+        k = 0
+        for mov in self.config.labels:
+            if mov == action:
+                policy[k] = 1.0
+                break
+            k += 1
+
+        self.moves.append([env.observation, list(policy)])
+        return action
+
     def action(self, board):
 
         env = ChessEnv().update(board)

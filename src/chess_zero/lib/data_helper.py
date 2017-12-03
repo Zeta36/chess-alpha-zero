@@ -1,11 +1,20 @@
 import json
 import os
 from glob import glob
+import fnmatch
 from logging import getLogger
 
 from chess_zero.config import ResourceConfig
 
 logger = getLogger(__name__)
+
+
+def find_pgn_files(directory, pattern='*.pgn'):
+    files = []
+    for root, dirnames, filenames in os.walk(directory):
+        for filename in fnmatch.filter(filenames, pattern):
+            files.append(os.path.join(root, filename))
+    return files
 
 
 def get_game_data_filenames(rc: ResourceConfig):

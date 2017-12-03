@@ -16,6 +16,23 @@ Environment
 * tensorflow-gpu: 1.3.0
 * Keras: 2.0.8
 
+### New Supervised Learning Training Pipeline
+
+I've done a supervised learning new pipeline step (to use those human games files "PGN" we can find in internet as play-data generator).
+This SL step was also used in the first and original version of AlphaGo and maybe chess is a some complex game that we have to pre-train first the policy model before starting the self-play process (i.e., maybe chess is too much complicated for a self training alone).
+
+To use the new SL process is so simple as running in the beginning instead of the worker "self" the new worker "sl".
+Once the model converges enough with SL play-data we just stop the worker "sl" and start the worker "self" so the model will start improving now due to self-play data.
+
+If you want to use this new SL step you will have to download from internet big PGN files (chess files) and paste them into the "data/play_data" folder.
+
+Supervised Learning
+-------------------
+
+```bash
+python src/chess_zero/run.py sl
+```
+
 ### New Distributed Training Pipeline
 
 Now it's possible to train the model in a distributed way. The only thing needed is to use the new parameter:
@@ -25,7 +42,7 @@ Now it's possible to train the model in a distributed way. The only thing needed
 So, in order to contribute to the distributed team you just need to run the three workers locally like this:
 
 ```bash
-python src/chess_zero/run.py self --type distributed
+python src/chess_zero/run.py self --type distributed (or python src/chess_zero/run.py sl --type distributed)
 python src/chess_zero/run.py opt --type distributed
 python src/chess_zero/run.py eval --type distributed
 ```
