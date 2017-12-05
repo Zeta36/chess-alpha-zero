@@ -16,6 +16,18 @@ Environment
 * tensorflow-gpu: 1.3.0
 * Keras: 2.0.8
 
+### First "good" results
+
+Using the new supervised learning step I created, I've been able to train a model to the point that seems to be learning the openings of chess. Also it seems the model starts to avoid losing naively pieces.
+
+Here you can see an example of a game played for me against this model (AI plays black):
+ 
+![partida1](https://user-images.githubusercontent.com/17341905/33597844-ea53c8ae-d9a0-11e7-8564-4b9b0f35a221.gif)
+
+This model plays in this way after only 5 epoch iterations of the 'opt' worker, the 'eval' worker changed 4 times the best model (4 of 5). At this moment the loss of the 'opt' worker is 5.1 (and still seems to be converging very well).
+
+As I have not GPU, I had to evaluate ('eval') using only "self.simulation_num_per_move = 10" and only 10 files of play data for the 'opt' worker. I'm pretty sure if anybody is able to run in a good GPU with a more powerful configuration the results after complete convergence would be really good.
+
 ### New Supervised Learning Training Pipeline
 
 I've done a supervised learning new pipeline step (to use those human games files "PGN" we can find in internet as play-data generator).
