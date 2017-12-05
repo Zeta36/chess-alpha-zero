@@ -19,7 +19,7 @@ TAG_REGEX = re.compile(r"^\[([A-Za-z0-9_]+)\s+\"(.*)\"\]\s*$")
 
 
 def start(config: Config):
-    tf_util.set_session_config(per_process_gpu_memory_fraction=0.5)
+    tf_util.set_session_config(per_process_gpu_memory_fraction=0.1)
     return SupervisedLearningWorker(config, env=ChessEnv()).start()
 
 
@@ -63,7 +63,7 @@ class SupervisedLearningWorker:
         if len(files) > 0:
             random.shuffle(files)
             filename = files[0]
-            pgn = open(filename)
+            pgn = open(filename, errors='ignore')
             size = os.path.getsize(filename)
             pos = random.randint(0, size)
             pgn.seek(pos)
