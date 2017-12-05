@@ -16,6 +16,12 @@ Environment
 * tensorflow-gpu: 1.3.0
 * Keras: 2.0.8
 
+Hardware Support from the company Starshot Software: http://www.starshotsoftware.com/
+=====
+![Starshot Software](http://www.starshotsoftware.com/wp-content/uploads/2016/10/starshot_logo_400.png)
+
+The company where I currently work gave me recently hardware support, offering an Microsoft Azure server with a GPU NVIDIA Tesla M60. I hope to get really good results now that I've got this big machine avaiable. 
+
 ### First "good" results
 
 Using the new supervised learning step I created, I've been able to train a model to the point that seems to be learning the openings of chess. Also it seems the model starts to avoid losing naively pieces.
