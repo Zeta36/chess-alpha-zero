@@ -9,6 +9,14 @@ This project is based in two main resources:
 
 Note: <b>This project is still under construction!!</b>
 
+News
+----
+
+DeepMind just released today a new version of thr AlphaGo Zero idea (named now AlphaZero) where they mastering chess from scratch: 
+https://arxiv.org/pdf/1712.01815.pdf. In fact, in chess AlphaZero outperformed Stockfish after just 4 hours (300k steps) Wow!
+
+There are new ideas we have to take into account for this project. It seems, for exmaple, that two planes for feeding the input model are not enough.
+
 Environment
 -----------
 
