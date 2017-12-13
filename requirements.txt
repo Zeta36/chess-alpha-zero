@@ -1,4 +1,4 @@
-	 
+uvloop
 profilehooks
 python-chess==0.21.2
 appnope==0.1.0
