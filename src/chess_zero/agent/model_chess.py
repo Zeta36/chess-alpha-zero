@@ -86,7 +86,7 @@ class ChessModel:
         resources = self.config.resource
         if mc.distributed and config_path == resources.model_best_config_path:
             try:
-                logger.debug(f"loading model from server")
+                logger.debug("loading model from server")
                 ftp_connection = ftplib.FTP(resources.model_best_distributed_ftp_server,
                                             resources.model_best_distributed_ftp_user,
                                             resources.model_best_distributed_ftp_password)
@@ -98,30 +98,30 @@ class ChessModel:
                 pass
 
         if os.path.exists(config_path) and os.path.exists(weight_path):
-            logger.debug(f"loading model from {config_path}")
+            logger.debug("loading model from {config_path}")
             with open(config_path, "rt") as f:
                 self.model = Model.from_config(json.load(f))
             self.model.load_weights(weight_path)
             self.digest = self.fetch_digest(weight_path)
-            logger.debug(f"loaded model digest = {self.digest}")
+            logger.debug("loaded model digest = {self.digest}")
             return True
         else:
-            logger.debug(f"model files does not exist at {config_path} and {weight_path}")
+            logger.debug("model files does not exist at {config_path} and {weight_path}")
             return False
 
     def save(self, config_path, weight_path):
-        logger.debug(f"save model to {config_path}")
+        logger.debug("save model to {config_path}")
         with open(config_path, "wt") as f:
             json.dump(self.model.get_config(), f)
             self.model.save_weights(weight_path)
         self.digest = self.fetch_digest(weight_path)
-        logger.debug(f"saved model digest {self.digest}")
+        logger.debug("saved model digest {self.digest}")
 
         mc = self.config.model
         resources = self.config.resource
         if mc.distributed and config_path == resources.model_best_config_path:
             try:
-                logger.debug(f"saving model to server")
+                logger.debug("saving model to server")
                 ftp_connection = ftplib.FTP(resources.model_best_distributed_ftp_server,
                                             resources.model_best_distributed_ftp_user,
                                             resources.model_best_distributed_ftp_password)

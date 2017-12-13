@@ -35,7 +35,7 @@ def start():
     config = Config(config_type=config_type)
     setup(config, args)
 
-    logger.info(f"config type: {config_type}")
+    logger.info("config type: {config_type}")
 
     if args.cmd == 'self':
         from .worker import self_play

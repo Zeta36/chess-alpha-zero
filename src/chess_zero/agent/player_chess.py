@@ -1,10 +1,11 @@
-from _asyncio import Future
 from asyncio.queues import Queue
 from collections import defaultdict, namedtuple
 from logging import getLogger
 import asyncio
-import uvloop
-asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+import platform
+if platform.system() != "Windows":
+    import uvloop
+    asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
 from profilehooks import profile
 
@@ -72,8 +73,8 @@ class ChessPlayer:
 
         for tl in range(self.play_config.thinking_loop):
             if tl > 0 and self.play_config.logging_thinking:
-                logger.debug(f"continue thinking: policy move=({action % 8}, {action // 8}), "
-                             f"value move=({action_by_value % 8}, {action_by_value // 8})")
+                logger.debug("continue thinking: policy move=({action % 8}, {action // 8}), "
+                             "value move=({action_by_value % 8}, {action_by_value // 8})")
             self.search_moves(board)
             policy = self.calc_policy(board)
             action = int(np.random.choice(range(self.labels_n), p=policy))
@@ -108,7 +109,7 @@ class ChessPlayer:
 
         coroutine_list.append(self.prediction_worker())
         loop.run_until_complete(asyncio.gather(*coroutine_list))
-        #logger.debug(f"Search time per move: {time.time()-start}")
+        #logger.debug("Search time per move: {time.time()-start}")
         # uncomment to see profile result per move
         # raise
 
@@ -208,7 +209,7 @@ class ChessPlayer:
                 await asyncio.sleep(self.config.play.prediction_worker_sleep_sec)
                 continue
             item_list = [q.get_nowait() for _ in range(q.qsize())]  # type: list[QueueItem]
-            #logger.debug(f"predicting {len(item_list)} items")
+            #logger.debug("predicting {len(item_list)} items")
             data = np.array([x.state for x in item_list])
             policy_ary, value_ary = self.api.predict(data)
             for p, v, item in zip(policy_ary, value_ary, item_list):
