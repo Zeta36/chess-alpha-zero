@@ -7,7 +7,7 @@ from logging import getLogger
 logger = getLogger(__name__)
 
 # noinspection PyArgumentList
-Winner = enum.Enum("Winner", "black white draw")
+Winner = enum.Enum("Winner", "black white draw undetermined")
 
 
 class ChessEnv:
@@ -47,7 +47,7 @@ class ChessEnv:
 
         self.turn += 1
 
-        if self.board.is_game_over() or self.board.can_claim_threefold_repetition():
+        if self.board.is_game_over(claim_draw=True):
             self._game_over()
 
         return self.board, {}
@@ -55,19 +55,11 @@ class ChessEnv:
     def _game_over(self):
         self.done = True
         if self.winner is None:
-            result = self.board.result()
-            if result == '1-0':
-                self.winner = Winner.white
-            elif result == '0-1':
-                self.winner = Winner.black
-            else:
-                val_black, val_white = self.score_board()
-                if val_black > val_white:
-                    self.winner = Winner.black
-                elif val_black < val_white:
-                    self.winner = Winner.white
-                else:
-                    self.winner = Winner.draw
+            result = self.board.result(claim_draw=True)
+            self.winner = Winner.white if result == '1-0' \
+                else Winner.black if result == '0-1' \
+                else Winner.draw if result == '1/2-1/2' \
+                else Winner.undetermined
 
     def score_current(self):
         val_black, val_white = self.score_board()

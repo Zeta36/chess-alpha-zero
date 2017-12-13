@@ -64,7 +64,8 @@ class SelfPlayWorker:
             board, info = self.env.step(action)
             observation = board.fen()
         self.finish_game()
-        self.save_play_data(write=idx % self.config.play_data.nb_game_in_file == 0)
+        if self.env.winner != Winner.undetermined:
+            self.save_play_data(write=idx % self.config.play_data.nb_game_in_file == 0)
         self.remove_play_data()
         return self.env
 
@@ -90,6 +91,9 @@ class SelfPlayWorker:
             os.remove(files[i])
 
     def finish_game(self):
+        if self.env.winner == Winner.undetermined:
+            return
+
         if self.env.winner == Winner.black:
             black_win = 1
         elif self.env.winner == Winner.white:
