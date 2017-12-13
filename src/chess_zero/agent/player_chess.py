@@ -68,7 +68,7 @@ class ChessPlayer:
         self.moves.append([env.observation, list(policy)])
         return action
 
-    def action(self, env):
+    def action(self, env, can_stop = True):
 
         key = self.counter_key(env)
 
@@ -86,11 +86,11 @@ class ChessPlayer:
         # this is for play_gui, not necessary when training.
         self.thinking_history[env.observation] = HistoryItem(action, policy, list(self.var_q[key]), list(self.var_n[key]))
 
-        if self.play_config.resign_threshold is not None and \
+        if can_stop and self.play_config.resign_threshold is not None and \
                         np.max(self.var_q[key] - (self.var_n[key] == 0) * 10) <= self.play_config.resign_threshold \
                         and self.play_config.min_resign_turn < env.turn:
             return None
-        elif env.turn >= self.play_config.average_chess_movements:
+        elif can_stop and env.turn >= self.play_config.average_chess_movements:
             env.ending_average_game()
             return None
         else:
