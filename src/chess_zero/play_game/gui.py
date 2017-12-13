@@ -28,6 +28,6 @@ def start(config: Config):
         env.render()
         print("Board FEN = " + board.fen())
 
-    print("\nEnd of the game.") #spaces after this?
-    print("Game result:") #and this?
+    print("\nEnd of the game.")
+    print("Game result:")
     print(env.board.result())

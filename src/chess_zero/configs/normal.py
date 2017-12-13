@@ -14,7 +14,7 @@ class EvaluateConfig:
 class PlayDataConfig:
     def __init__(self):
         self.nb_game_in_file = 100
-        self.max_file_num = 200  # 5000
+        self.max_file_num = 200
 
 
 class PlayConfig:
@@ -22,22 +22,23 @@ class PlayConfig:
         self.simulation_num_per_move = 200
         self.thinking_loop = 1
         self.logging_thinking = False
-        self.c_puct = 2
+        self.c_puct = 1.5
         self.noise_eps = 0.25
-        self.dirichlet_alpha = 0.03
+        self.dirichlet_alpha = 0.3
         self.change_tau_turn = 10
         self.virtual_loss = 3
         self.prediction_queue_size = 16
         self.parallel_search_num = 16
-        self.prediction_worker_sleep_sec = 0.0001
-        self.wait_for_expanding_sleep_sec = 0.00001
-        self.resign_threshold = -13
+        self.prediction_worker_sleep_sec = 0.00001
+        self.wait_for_expanding_sleep_sec = 0.000001
+        self.resign_threshold = -0.8
         self.min_resign_turn = 5
+        self.average_chess_movements = 50
 
 
 class TrainerConfig:
     def __init__(self):
-        self.batch_size = 32  # 2048
+        self.batch_size = 2048
         self.epoch_to_checkpoint = 1
         self.start_total_steps = 0
         self.save_model_steps = 2000

@@ -19,7 +19,7 @@ TAG_REGEX = re.compile(r"^\[([A-Za-z0-9_]+)\s+\"(.*)\"\]\s*$")
 
 
 def start(config: Config):
-    tf_util.set_session_config(per_process_gpu_memory_fraction=0.1)
+    tf_util.set_session_config(per_process_gpu_memory_fraction=0.01)
     return SupervisedLearningWorker(config, env=ChessEnv()).start()
 
 

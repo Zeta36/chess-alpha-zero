@@ -15,7 +15,7 @@ logger = getLogger(__name__)
 
 
 def start(config: Config):
-    tf_util.set_session_config(per_process_gpu_memory_fraction=0.5)
+    tf_util.set_session_config(per_process_gpu_memory_fraction=0.4)
     return SelfPlayWorker(config, env=ChessEnv()).start()
 
 
@@ -55,14 +55,12 @@ class SelfPlayWorker:
         self.env.reset()
         self.black = ChessPlayer(self.config, self.model)
         self.white = ChessPlayer(self.config, self.model)
-        observation = self.env.observation
         while not self.env.done:
             if self.env.board.turn == chess.BLACK:
-                action = self.black.action(observation)
+                action = self.black.action(self.env)
             else:
-                action = self.white.action(observation)
-            board, info = self.env.step(action)
-            observation = board.fen()
+                action = self.white.action(self.env)
+            self.env.step(action)
         self.finish_game()
         self.save_play_data(write=idx % self.config.play_data.nb_game_in_file == 0)
         self.remove_play_data()

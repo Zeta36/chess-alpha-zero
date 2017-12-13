@@ -29,7 +29,7 @@ class ChessModel:
 
     def build(self):
         mc = self.config.model
-        in_x = x = Input((2, 8, 8))  # [own(8x8), enemy(8x8)]
+        in_x = x = Input((110, 8, 8))
 
         # (batch, channels, height, width)
         x = Conv2D(filters=mc.cnn_filter_num, kernel_size=mc.cnn_filter_size, padding="same",

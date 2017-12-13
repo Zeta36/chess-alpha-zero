@@ -18,13 +18,13 @@ def create_uci_labels():
 
     for l1 in range(8):
         for n1 in range(8):
-            destinations = [(t, n1) for t in range(0, 8)] + \
-                           [(l1, t) for t in range(0, 8)] + \
+            destinations = [(t, n1) for t in range(8)] + \
+                           [(l1, t) for t in range(8)] + \
                            [(l1 + t, n1 + t) for t in range(-7, 8)] + \
                            [(l1 + t, n1 - t) for t in range(-7, 8)] + \
                            [(l1 + a, n1 + b) for (a, b) in [(-2, -1), (-1, -2), (-2, 1), (1, -2), (2, -1), (-1, 2), (2, 1), (1, 2)]]
             for (l2, n2) in destinations:
-                if (l1, n1) != (l2, n2) and l2 in range(0, 8) and n2 in range(0, 8):
+                if (l1, n1) != (l2, n2) and l2 in range(8) and n2 in range(8):
                     move = letters[l1] + numbers[n1] + letters[l2] + numbers[n2]
                     labels_array.append(move)
     for l1 in range(8):

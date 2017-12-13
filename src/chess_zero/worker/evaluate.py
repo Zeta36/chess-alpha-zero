@@ -74,14 +74,12 @@ class EvaluateWorker:
         else:
             black, white = ng_player, best_player
 
-        observation = env.observation
         while not env.done:
             if env.board.turn == chess.BLACK:
-                action = black.action(observation)
+                action = black.action(env)
             else:
-                action = white.action(observation)
-            board, info = env.step(action)
-            observation = board.fen()
+                action = white.action(env)
+            env.step(action)
 
         ng_win = None
         if env.winner == Winner.white:
