@@ -19,7 +19,7 @@ TAG_REGEX = re.compile(r"^\[([A-Za-z0-9_]+)\s+\"(.*)\"\]\s*$")
 
 
 def start(config: Config):
-    tf_util.set_session_config(per_process_gpu_memory_fraction=0.1)
+    tf_util.set_session_config(per_process_gpu_memory_fraction=0.01)
     return SupervisedLearningWorker(config, env=ChessEnv()).start()
 
 
@@ -49,8 +49,8 @@ class SupervisedLearningWorker:
             start_time = time()
             env = self.read_game(idx)
             end_time = time()
-            logger.debug("game {idx} time={end_time - start_time} sec, "
-                         "turn={int(env.turn/2)}:{env.observation} - Winner:{env.winner} - by resignation?:{env.resigned}")
+            logger.debug(f"game {idx} time={end_time - start_time} sec, "
+                         f"turn={int(env.turn/2)}:{env.observation} - Winner:{env.winner} - by resignation?:{env.resigned}")
             if (idx % self.config.play_data.nb_game_in_file) == 0:
                 reload_best_model_weight_if_changed(self.model)
             idx += 1
@@ -131,7 +131,7 @@ class SupervisedLearningWorker:
         rc = self.config.resource
         game_id = datetime.now().strftime("%Y%m%d-%H%M%S.%f")
         path = os.path.join(rc.play_data_dir, rc.play_data_filename_tmpl % game_id)
-        logger.info("save play data to {path}")
+        logger.info(f"save play data to {path}")
         write_game_data_to_file(path, self.buffer)
         self.buffer = []
 

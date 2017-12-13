@@ -1,10 +1,10 @@
 
 import os
 import sys
-from dotenv import Dotenv
-dotenv = Dotenv(".env") # Of course, replace by your correct path
+from dotenv import load_dotenv, find_dotenv
 
-os.environ.update(dotenv)
+if find_dotenv():
+    load_dotenv(find_dotenv())
 
 _PATH_ = os.path.dirname(os.path.dirname(__file__))
 

@@ -29,7 +29,7 @@ class ChessModel:
 
     def build(self):
         mc = self.config.model
-        in_x = x = Input((2, 8, 8))  # [own(8x8), enemy(8x8)]
+        in_x = x = Input((110, 8, 8))
 
         # (batch, channels, height, width)
         x = Conv2D(filters=mc.cnn_filter_num, kernel_size=mc.cnn_filter_size, padding="same",
@@ -98,24 +98,24 @@ class ChessModel:
                 pass
 
         if os.path.exists(config_path) and os.path.exists(weight_path):
-            logger.debug("loading model from {config_path}")
+            logger.debug(f"loading model from {config_path}")
             with open(config_path, "rt") as f:
                 self.model = Model.from_config(json.load(f))
             self.model.load_weights(weight_path)
             self.digest = self.fetch_digest(weight_path)
-            logger.debug("loaded model digest = {self.digest}")
+            logger.debug(f"loaded model digest = {self.digest}")
             return True
         else:
-            logger.debug("model files does not exist at {config_path} and {weight_path}")
+            logger.debug(f"model files does not exist at {config_path} and {weight_path}")
             return False
 
     def save(self, config_path, weight_path):
-        logger.debug("save model to {config_path}")
+        logger.debug(f"save model to {config_path}")
         with open(config_path, "wt") as f:
             json.dump(self.model.get_config(), f)
             self.model.save_weights(weight_path)
         self.digest = self.fetch_digest(weight_path)
-        logger.debug("saved model digest {self.digest}")
+        logger.debug(f"saved model digest {self.digest}")
 
         mc = self.config.model
         resources = self.config.resource

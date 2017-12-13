@@ -31,11 +31,11 @@ class PlayWithHuman:
         return model
 
     def move_by_ai(self, env):
-        action = self.ai.action(env.observation)
+        action = self.ai.action(env)
 
         self.last_history = self.ai.ask_thought_about(env.observation)
         self.last_evaluation = self.last_history.values[self.last_history.action]
-        logger.debug("Evaluation by AI = {self.last_evaluation}")
+        logger.debug(f"Evaluation by AI = {self.last_evaluation}")
 
         return action
 

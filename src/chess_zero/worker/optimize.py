@@ -21,7 +21,7 @@ logger = getLogger(__name__)
 
 
 def start(config: Config):
-    tf_util.set_session_config(per_process_gpu_memory_fraction=0.59)
+    tf_util.set_session_config(per_process_gpu_memory_fraction=0.4)
     return OptimizeWorker(config).start()
 
 
@@ -46,7 +46,7 @@ class OptimizeWorker:
 
         while True:
             if self.dataset_size < min_data_size_to_learn:
-                logger.info("dataset_size={self.dataset_size} is less than {min_data_size_to_learn}")
+                logger.info(f"dataset_size={self.dataset_size} is less than {min_data_size_to_learn}")
                 sleep(60)
                 self.load_play_data()
                 continue
@@ -76,21 +76,16 @@ class OptimizeWorker:
         self.model.model.compile(optimizer=self.optimizer, loss=losses)
 
     def update_learning_rate(self, total_steps):
-        # The deepmind paper says
-        # ~400k: 1e-2
-        # 400k~600k: 1e-3
-        # 600k~: 1e-4
-
         if total_steps < 100000:
-            lr = 1e-2
+            lr = 2e-2
         elif total_steps < 500000:
-            lr = 1e-3
+            lr = 2e-3
         elif total_steps < 900000:
-            lr = 1e-4
+            lr = 2e-4
         else:
             lr = 2.5e-5  # means (1e-4 / 4): the paper batch size=2048, ours is 512.
         k.set_value(self.optimizer.lr, lr)
-        logger.debug("total step={total_steps}, set learning rate to {lr}")
+        logger.debug(f"total step={total_steps}, set learning rate to {lr}")
 
     def save_current_model(self):
         rc = self.config.resource
@@ -156,7 +151,7 @@ class OptimizeWorker:
 
     def load_data_from_file(self, filename):
         try:
-            logger.debug("loading data from {filename}")
+            logger.debug(f"loading data from {filename}")
             data = read_game_data_from_file(filename)
             self.loaded_data[filename] = self.convert_to_training_data(data)
             self.loaded_filenames.add(filename)
@@ -164,7 +159,7 @@ class OptimizeWorker:
             logger.warning(str(e))
 
     def unload_data_of_file(self, filename):
-        logger.debug("removing data about {filename} from training set")
+        logger.debug(f"removing data about {filename} from training set")
         self.loaded_filenames.remove(filename)
         if filename in self.loaded_data:
             del self.loaded_data[filename]
@@ -179,12 +174,25 @@ class OptimizeWorker:
         state_list = []
         policy_list = []
         z_list = []
+        aux_move_number = 1
+        movements = []
         for state, policy, z in data:
-            env = ChessEnv().update(state)
+            move_number = int((ChessEnv().update(state, movements)).board.fen().split(" ")[5])
+            if aux_move_number < move_number:
+                if len(movements) > 8:
+                    movements.pop(0)
+                movements.append(env.observation)
+                aux_move_number = move_number
+            else:
+                aux_move_number = 1
+                movements = []
 
-            black_ary, white_ary = env.black_and_white_plane()
-            state = [black_ary, white_ary] if env.board.turn == chess.BLACK else [white_ary, black_ary]
+            env = ChessEnv().update(state, movements)
 
+            black_ary, white_ary, current_player, move_number = env.black_and_white_plane()
+            state = [white_ary, black_ary]
+            state = np.reshape(np.reshape(np.array(state), (18, 6, 8, 8)), (108, 8, 8))
+            state = np.vstack((state, np.reshape(current_player, (1, 8, 8)), np.reshape(move_number, (1, 8, 8))))
             state_list.append(state)
             policy_list.append(policy)
             z_list.append(z)

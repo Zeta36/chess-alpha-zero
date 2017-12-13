@@ -15,7 +15,7 @@ logger = getLogger(__name__)
 
 
 def start(config: Config):
-    tf_util.set_session_config(per_process_gpu_memory_fraction=0.5)
+    tf_util.set_session_config(per_process_gpu_memory_fraction=0.4)
     return SelfPlayWorker(config, env=ChessEnv()).start()
 
 
@@ -45,8 +45,8 @@ class SelfPlayWorker:
             start_time = time()
             env = self.start_game(idx)
             end_time = time()
-            logger.debug("game {idx} time={end_time - start_time} sec, "
-                         "turn={int(env.turn/2)}:{env.observation} - Winner:{env.winner} - by resignation?:{env.resigned}")
+            logger.debug(f"game {idx} time={end_time - start_time} sec, "
+                         f"turn={int(env.turn/2)}:{env.observation} - Winner:{env.winner} - by resignation?:{env.resigned}")
             if (idx % self.config.play_data.nb_game_in_file) == 0:
                 reload_best_model_weight_if_changed(self.model)
             idx += 1
@@ -55,14 +55,12 @@ class SelfPlayWorker:
         self.env.reset()
         self.black = ChessPlayer(self.config, self.model)
         self.white = ChessPlayer(self.config, self.model)
-        observation = self.env.observation
         while not self.env.done:
             if self.env.board.turn == chess.BLACK:
-                action = self.black.action(observation)
+                action = self.black.action(self.env)
             else:
-                action = self.white.action(observation)
-            board, info = self.env.step(action)
-            observation = board.fen()
+                action = self.white.action(self.env)
+            self.env.step(action)
         self.finish_game()
         if self.env.winner != Winner.undetermined:
             self.save_play_data(write=idx % self.config.play_data.nb_game_in_file == 0)
@@ -79,7 +77,7 @@ class SelfPlayWorker:
         rc = self.config.resource
         game_id = datetime.now().strftime("%Y%m%d-%H%M%S.%f")
         path = os.path.join(rc.play_data_dir, rc.play_data_filename_tmpl % game_id)
-        logger.info("save play data to {path}")
+        logger.info(f"save play data to {path}")
         write_game_data_to_file(path, self.buffer)
         self.buffer = []
 
