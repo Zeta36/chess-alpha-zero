@@ -48,7 +48,7 @@ qtconsole==4.3.1
 scipy==0.19.1
 simplegeneric==0.8.1
 six==1.11.0
-tensorflow-gpu==1.3.0
+tensorflow==1.3.0
 tensorflow-tensorboard==0.1.8
 terminado==0.6
 testpath==0.3.1
