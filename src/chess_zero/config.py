@@ -55,7 +55,7 @@ class Config:
         elif config_type == "distributed":
             import chess_zero.configs.distributed as c
         else:
-            raise RuntimeError(f"unknown config_type: {config_type}")
+            raise RuntimeError("unknown config_type: {config_type}")
         self.model = c.ModelConfig()
         self.play = c.PlayConfig()
         self.play_data = c.PlayDataConfig()
@@ -73,6 +73,7 @@ class ResourceConfig:
     def __init__(self):
         self.project_dir = os.environ.get("PROJECT_DIR", _project_dir())
         self.data_dir = os.environ.get("DATA_DIR", _data_dir())
+        
         self.model_dir = os.environ.get("MODEL_DIR", os.path.join(self.data_dir, "model"))
         self.model_best_config_path = os.path.join(self.model_dir, "model_best_config.json")
         self.model_best_weight_path = os.path.join(self.model_dir, "model_best_weight.h5")

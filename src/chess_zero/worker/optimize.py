@@ -46,7 +46,7 @@ class OptimizeWorker:
 
         while True:
             if self.dataset_size < min_data_size_to_learn:
-                logger.info(f"dataset_size={self.dataset_size} is less than {min_data_size_to_learn}")
+                logger.info("dataset_size={self.dataset_size} is less than {min_data_size_to_learn}")
                 sleep(60)
                 self.load_play_data()
                 continue
@@ -90,7 +90,7 @@ class OptimizeWorker:
         else:
             lr = 2.5e-5  # means (1e-4 / 4): the paper batch size=2048, ours is 512.
         k.set_value(self.optimizer.lr, lr)
-        logger.debug(f"total step={total_steps}, set learning rate to {lr}")
+        logger.debug("total step={total_steps}, set learning rate to {lr}")
 
     def save_current_model(self):
         rc = self.config.resource
@@ -126,12 +126,12 @@ class OptimizeWorker:
 
         dirs = get_next_generation_model_dirs(rc)
         if not dirs:
-            logger.debug(f"loading best model")
+            logger.debug("loading best model")
             if not load_best_model_weight(model):
-                raise RuntimeError(f"Best model can not loaded!")
+                raise RuntimeError("Best model can not loaded!")
         else:
             latest_dir = dirs[-1]
-            logger.debug(f"loading latest model")
+            logger.debug("loading latest model")
             config_path = os.path.join(latest_dir, rc.next_generation_model_config_filename)
             weight_path = os.path.join(latest_dir, rc.next_generation_model_weight_filename)
             model.load(config_path, weight_path)
@@ -156,7 +156,7 @@ class OptimizeWorker:
 
     def load_data_from_file(self, filename):
         try:
-            logger.debug(f"loading data from {filename}")
+            logger.debug("loading data from {filename}")
             data = read_game_data_from_file(filename)
             self.loaded_data[filename] = self.convert_to_training_data(data)
             self.loaded_filenames.add(filename)
@@ -164,7 +164,7 @@ class OptimizeWorker:
             logger.warning(str(e))
 
     def unload_data_of_file(self, filename):
-        logger.debug(f"removing data about {filename} from training set")
+        logger.debug("removing data about {filename} from training set")
         self.loaded_filenames.remove(filename)
         if filename in self.loaded_data:
             del self.loaded_data[filename]
