@@ -20,3 +20,4 @@ video/*
 *.h5
 logs/
 *.sh
+requirements.txt

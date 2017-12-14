@@ -165,7 +165,7 @@ class OptimizeWorker:
             del self.loaded_data[filename]
 
     @staticmethod
-    def convert_to_training_data(data):
+    def convert_to_training_data(data, augment = True):
         """
 
         :param data: format is SelfPlayWorker.buffer
@@ -189,12 +189,21 @@ class OptimizeWorker:
 
             env = ChessEnv().update(state, movements)
 
-            black_ary, white_ary, current_player, move_number = env.black_and_white_plane()
+            black_ary, white_ary, current_player, fifty_move_number = env.black_and_white_plane()
             state = [white_ary, black_ary]
             state = np.reshape(np.reshape(np.array(state), (18, 6, 8, 8)), (108, 8, 8))
-            state = np.vstack((state, np.reshape(current_player, (1, 8, 8)), np.reshape(move_number, (1, 8, 8))))
+            state = np.vstack((state, np.reshape(current_player, (1, 8, 8)), np.reshape(fifty_move_number, (1, 8, 8))))
             state_list.append(state)
             policy_list.append(policy)
             z_list.append(z)
+
+            # if augment:
+            #     black_ary2, white_ary2, current_player2, fifty_move_number2 = env.black_and_white_plane(flip = True)
+            #     state2 = [white_ary2, black_ary2]
+            #     state2 = np.reshape(np.reshape(np.array(state2), (18, 6, 8, 8)), (108, 8, 8))
+            #     state2 = np.vstack((state2, np.reshape(current_player2, (1, 8, 8)), np.reshape(fifty_move_number2, (1, 8, 8))))
+            #     state_list.append(state2)
+            #     policy_list.append(policy) # idk how to flip policy
+            #     z_list.append(z)
 
         return np.array(state_list), np.array(policy_list), np.array(z_list)

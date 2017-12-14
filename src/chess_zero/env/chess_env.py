@@ -90,7 +90,19 @@ class ChessEnv:
         self.done = True
         self.winner = Winner.draw
 
-    def black_and_white_plane(self):
+    def canonical_bw_plane(self):
+        current_player = self.board.fen().split(" ")[1]
+        return black_and_white_plane(self, current_player == 'b')
+
+    def maybe_flip(self, brd, flip = False):
+        if flip == False:
+            return brd
+        # print ("".join( [brd[i : i + 8] for i in reversed(range(0, 64, 8))] ))
+        return "".join( [brd[i : i + 8] for i in reversed(range(0, 64, 8))] )
+
+    # this can be used to augment training data (easier) OR dim reduction
+    def black_and_white_plane(self, flip = False):
+        # flip = True applies the flip + invert color invariant transformation
         one_hot = {}
         one_hot.update(dict.fromkeys(['K', 'k'], [1, 0, 0, 0, 0, 0]))
         one_hot.update(dict.fromkeys(['Q', 'q'], [0, 1, 0, 0, 0, 0]))
@@ -99,39 +111,45 @@ class ChessEnv:
         one_hot.update(dict.fromkeys(['N', 'n'], [0, 0, 0, 0, 1, 0]))
         one_hot.update(dict.fromkeys(['P', 'p'], [0, 0, 0, 0, 0, 1]))
 
-        history_white = []
-        history_black = []
+        history_p1 = [] #side to move
+        history_p2 = [] #side not to move
 
         # history planes
         for i in range(8):
             if i < len(self.movements):
                 board_state = self.replace_tags_board(self.movements[i])
-                history_white_aux = [one_hot[val] if val.isupper() else [0, 0, 0, 0, 0, 0] for val in board_state.split(" ")[0]]
-                history_white.append(np.transpose(np.reshape(history_white_aux, (8, 8, 6)), (2, 0, 1)))
-                history_black_aux = [one_hot[val] if val.islower() else [0, 0, 0, 0, 0, 0] for val in board_state.split(" ")[0]]
-                history_black.append(np.transpose(np.reshape(history_black_aux, (8, 8, 6)), (2, 0, 1)))
+                board_state = self.maybe_flip(board_state.split(" ")[0], flip) 
+                history_p1_aux = [one_hot[val] if val.isupper() != flip else [0, 0, 0, 0, 0, 0] \
+                    for val in board_state]
+                history_p1.append(np.transpose(np.reshape(history_p1_aux, (8, 8, 6)), (2, 0, 1)))
+                history_p2_aux = [one_hot[val] if val.islower() != flip else [0, 0, 0, 0, 0, 0] \
+                    for val in board_state]
+                history_p2.append(np.transpose(np.reshape(history_p2_aux, (8, 8, 6)), (2, 0, 1)))
             else:
-                history_white_aux = [[0, 0, 0, 0, 0, 0] for _ in range(64)]
-                history_white.append(np.transpose(np.reshape(history_white_aux, (8, 8, 6)), (2, 0, 1)))
-                history_black_aux = [[0, 0, 0, 0, 0, 0] for _ in range(64)]
-                history_black.append(np.transpose(np.reshape(history_black_aux, (8, 8, 6)), (2, 0, 1)))
+                history_p1_aux = [[0, 0, 0, 0, 0, 0] for _ in range(64)]
+                history_p1.append(np.transpose(np.reshape(history_p1_aux, (8, 8, 6)), (2, 0, 1)))
+                history_p2_aux = [[0, 0, 0, 0, 0, 0] for _ in range(64)]
+                history_p2.append(np.transpose(np.reshape(history_p2_aux, (8, 8, 6)), (2, 0, 1)))
 
         # current state plane
         board_state = self.replace_tags()
-        board_white = [one_hot[val] if val.isupper() else [0, 0, 0, 0, 0, 0] for val in board_state.split(" ")[0]]
-        history_white.append(np.transpose(np.reshape(board_white, (8, 8, 6)), (2, 0, 1)))
-        board_black = [one_hot[val] if val.islower() else [0, 0, 0, 0, 0, 0] for val in board_state.split(" ")[0]]
-        history_black.append(np.transpose(np.reshape(board_black, (8, 8, 6)), (2, 0, 1)))
+        board_state = self.maybe_flip(board_state.split(" ")[0], flip) 
+        board_p1 = [one_hot[val] if val.isupper() != flip else [0, 0, 0, 0, 0, 0] \
+            for val in board_state]
+        history_p1.append(np.transpose(np.reshape(board_p1, (8, 8, 6)), (2, 0, 1)))
+        board_p2 = [one_hot[val] if val.islower() != flip else [0, 0, 0, 0, 0, 0] \
+            for val in board_state]
+        history_p2.append(np.transpose(np.reshape(board_p2, (8, 8, 6)), (2, 0, 1)))
 
-        # one-hot integer plane current player turn
+        # one-hot integer plane current player turn, xor if flipped
         current_player = self.board.fen().split(" ")[1]
-        current_player = np.full((8, 8), int(current_player == 'w'), dtype=int)
+        current_player = np.full((8, 8), int((current_player == 'w') != flip), dtype=int)
 
-        # plane move number
-        move_number = self.board.fen().split(" ")[5]
-        move_number = np.full((8, 8), int(move_number), dtype=int)
+        # fifty move rule number
+        fifty_move_number = self.board.fen().split(" ")[4]
+        fifty_move_number = np.full((8, 8), int(fifty_move_number), dtype=int)
 
-        return history_white, history_black, current_player, move_number
+        return history_p1, history_p2, current_player, fifty_move_number
 
     def copy(self):
         env = copy.copy(self)
@@ -151,16 +169,7 @@ class ChessEnv:
         return board_san.replace("/", "")
 
     def replace_tags(self):
-        board_san = self.board.fen()
-        board_san = board_san.split(" ")[0]
-        board_san = board_san.replace("2", "11")
-        board_san = board_san.replace("3", "111")
-        board_san = board_san.replace("4", "1111")
-        board_san = board_san.replace("5", "11111")
-        board_san = board_san.replace("6", "111111")
-        board_san = board_san.replace("7", "1111111")
-        board_san = board_san.replace("8", "11111111")
-        return board_san.replace("/", "")
+        return self.replace_tags_board(self.board.fen())
 
     def render(self):
         print("\n")
