@@ -60,6 +60,7 @@ class SelfPlayWorker:
                 action = self.black.action(self.env)
             else:
                 action = self.white.action(self.env)
+            print(action)
             self.env.step(action)
         self.finish_game()
         self.save_play_data(write=idx % self.config.play_data.nb_game_in_file == 0)
