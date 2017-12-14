@@ -67,7 +67,12 @@ class SelfPlayWorker:
         return self.env
 
     def save_play_data(self, write=True):
-        data = self.black.moves + self.white.moves
+        num = min(len(self.white.moves), len(self.black.moves))
+        data = [None] * (num * 2)
+        data[::2] = self.white.moves[:num]
+        data[1::2] = self.black.moves[:num]
+        data.extend(self.white.moves[num:])
+        data.extend(self.black.moves[num:])
         self.buffer += data
 
         if not write:

@@ -190,7 +190,7 @@ class OptimizeWorker:
             env = ChessEnv().update(state, movements)
 
             black_ary, white_ary, current_player, move_number = env.black_and_white_plane()
-            state = [white_ary, black_ary]
+            state = [black_ary, white_ary] if env.board.fen().split(" ")[1] == 'b' else [white_ary, black_ary]
             state = np.reshape(np.reshape(np.array(state), (18, 6, 8, 8)), (108, 8, 8))
             state = np.vstack((state, np.reshape(current_player, (1, 8, 8)), np.reshape(move_number, (1, 8, 8))))
             state_list.append(state)

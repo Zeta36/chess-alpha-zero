@@ -116,13 +116,19 @@ class SupervisedLearningWorker:
             else:
                 self.env.winner = Winner.draw
 
-            self.finish_game()
-            self.save_play_data(write=idx % self.config.play_data.nb_game_in_file == 0)
-            self.remove_play_data()
+            if self.env.winner != Winner.draw:
+                self.finish_game()
+                self.save_play_data(write=idx % self.config.play_data.nb_game_in_file == 0)
+                self.remove_play_data()
         return self.env
 
     def save_play_data(self, write=True):
-        data = self.black.moves + self.white.moves
+        num = min(len(self.white.moves), len(self.black.moves))
+        data = [None] * (num * 2)
+        data[::2] = self.white.moves[:num]
+        data[1::2] = self.black.moves[:num]
+        data.extend(self.white.moves[num:])
+        data.extend(self.black.moves[num:])
         self.buffer += data
 
         if not write:
