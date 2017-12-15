@@ -61,10 +61,6 @@ class ChessEnv:
 
         self.board.push_uci(action)
 
-        # if len(self.movements) > 8:
-        #     self.movements.pop(0)
-        # self.movements.append(self.board.fen())
-
         self.turn += 1
 
         if self.board.is_game_over(claim_draw=True):
@@ -99,10 +95,7 @@ class ChessEnv:
         self.done = True
         self.winner = Winner.draw
 
-    def canonical_input_planes(self):
-        current_player = self.board.fen().split(" ")[1]
-        flip = (current_player == 'b')
-
+    def all_input_planes(self, flip=False):
         myboard = self.maybe_flip_fen(self.board.fen(), flip)
         current_aux_planes = self.aux_planes(myboard)
 
@@ -111,6 +104,11 @@ class ChessEnv:
         ret = np.vstack((history_both, current_aux_planes))
         assert ret.shape == (101, 8, 8)
         return ret
+
+    def canonical_input_planes(self):
+        current_player = self.board.fen().split(" ")[1]
+        flip = (current_player == 'b')
+        return self.all_input_planes(flip)
 
     @staticmethod
     def maybe_flip_fen(fen, flip = False):
@@ -154,12 +152,9 @@ class ChessEnv:
         assert ret.shape == (5,8,8)
         return ret
 
-    # this can be used to augment training data (easier) OR dim reduction
     def black_and_white_plane(self, flip = False):
         # flip = True applies the flip + invert color invariant transformation
 
-        # history_p1 = [] #side to move
-        # history_p2 = [] #side not to move
         history_both = []
         history_moves = []
 
@@ -172,33 +167,8 @@ class ChessEnv:
                 #print(board_fen)
                 history_moves.append(self.board.pop())
 
-            # if i < len(self.movements):
-            #     board_state = self.maybe_flip_fen(self.movements[i], flip) 
-            #     history_both.append(self.to_planes(fen = board_state))
-            # else:
-            #     history_both.append(np.transpose(np.zeros(shape = (8, 8, 6)), (2, 0, 1)))
-            #     history_both.append(np.transpose(np.zeros(shape = (8, 8, 6)), (2, 0, 1)))
-
         for mov in reversed(history_moves):
             self.board.push(mov)
-
-        # # current state plane
-        # board_state = self.replace_tags()
-        # board_state = self.maybe_flip(board_state.split(" ")[0], flip) 
-        # board_p1 = [one_hot[val] if (val != '1' and val.isupper() != flip) else [0, 0, 0, 0, 0, 0] \
-        #     for val in board_state]
-        # history_p1.append(np.transpose(np.reshape(board_p1, (8, 8, 6)), (2, 0, 1)))
-        # board_p2 = [one_hot[val] if (val != '1' and val.islower() != flip) else [0, 0, 0, 0, 0, 0] \
-        #     for val in board_state]
-        # history_p2.append(np.transpose(np.reshape(board_p2, (8, 8, 6)), (2, 0, 1)))
-
-        # # one-hot integer plane current player turn, xor if flipped
-        # current_player = self.board.fen().split(" ")[1]
-        # current_player = np.full((8, 8), int((current_player == 'w') != flip), dtype=int)
-
-        # # fifty move rule number
-        # fifty_move_number = self.board.fen().split(" ")[4]
-        # fifty_move_number = np.full((8, 8), int(fifty_move_number), dtype=int)
         history_both = np.asarray(history_both)
         #print (history_both.shape)
         assert history_both.shape == (96, 8, 8)

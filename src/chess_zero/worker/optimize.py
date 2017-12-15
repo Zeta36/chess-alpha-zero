@@ -72,7 +72,7 @@ class OptimizeWorker:
         return steps
 
     def compile_model(self):
-        self.optimizer = Adam()#SGD(lr=1e-2, momentum=0.9) # Adam better?
+        self.optimizer = Adam(lr=1e-2)#SGD(lr=1e-2, momentum=0.9) # Adam better?
         losses = [loss_function_for_policy, loss_function_for_value] # avoid overfit for supervised 
         self.model.model.compile(optimizer=self.optimizer, loss=losses, loss_weights=self.config.trainer.loss_weights)
 
@@ -175,28 +175,17 @@ class OptimizeWorker:
         state_list = []
         policy_list = []
         z_list = []
-        # aux_move_number = 1
-        # movements = []
         env = ChessEnv().reset()
         for state_fen, policy, z in data:
-            ##assert state_fen == ChessEnv().update(state_fen,movements).board.fen()
             # move_number = int(state_fen.split(" ")[5])
+            print (ChessEnv.maybe_flip_fen(ChessEnv.maybe_flip_fen(state_fen,True),True).split(' ')[0])
+            assert ChessEnv.replace_tags_board(state_fen) == ChessEnv.maybe_flip_fen(ChessEnv.maybe_flip_fen(state_fen,True),True).split(' ')[0]
             next_move = env.deltamove(state_fen)
             #print(state_fen)
             if next_move == None: # new game!
                 env.reset()
             else:
                 env.step(next_move)
-            # if aux_move_number < move_number:
-            #     if len(movements) > 8:
-            #         movements.pop(0)
-            #     movements.append(env.observation)
-            #     aux_move_number = move_number
-            # else:
-            #     aux_move_number = 1
-            #     movements = []
-
-            # env = ChessEnv().update(state_fen, movements)
 
             state_planes = env.canonical_input_planes()
             state_list.append(state_planes)

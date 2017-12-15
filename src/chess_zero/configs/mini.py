@@ -1,6 +1,6 @@
 class EvaluateConfig:
     def __init__(self):
-        self.game_num = 10
+        self.game_num = 20
         self.replace_rate = 0.55
         self.play_config = PlayConfig()
         self.play_config.simulation_num_per_move = 20
@@ -26,12 +26,12 @@ class PlayConfig:
         self.noise_eps = 0.25
         self.dirichlet_alpha = 0.3
         self.change_tau_turn = 10
-        self.virtual_loss = 1 #3
+        self.virtual_loss = 3
         self.prediction_queue_size = 16
         self.parallel_search_num = 16
         self.prediction_worker_sleep_sec = 0.00001
         self.wait_for_expanding_sleep_sec = 0.000001
-        self.resign_threshold = -0.8
+        self.resign_threshold = -0.9
         self.min_resign_turn = 5
         self.average_chess_movements = 50
 
@@ -43,7 +43,7 @@ class TrainerConfig:
         self.start_total_steps = 0
         self.save_model_steps = 25
         self.load_data_steps = 100
-        self.loss_weights = [1.0, 0.01] # prevent value overfit in SL
+        self.loss_weights = [1.0, 1.0] # [policy, value] prevent value overfit in SL
 
 
 class ModelConfig:

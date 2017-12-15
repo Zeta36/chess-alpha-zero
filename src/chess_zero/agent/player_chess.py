@@ -3,6 +3,7 @@ from asyncio.queues import Queue
 from collections import defaultdict, namedtuple
 from logging import getLogger
 import asyncio
+import enum
 
 from profilehooks import profile
 
@@ -23,9 +24,9 @@ if platform.system() != "Windows":
 
 QueueItem = namedtuple("QueueItem", "state future")
 HistoryItem = namedtuple("HistoryItem", "action policy values visit")
+NodeType = enum.Enum("NodeType","internal expanding leaf") #MCTS node types
 
 logger = getLogger(__name__)
-
 
 class ChessPlayer:
     def __init__(self, config: Config, model, play_config=None):
@@ -50,13 +51,12 @@ class ChessPlayer:
     # we are leaking memory + losing MCTS nodes...!! (without this)
     def reset(self):
         # these are from AGZ nature paper
-        self.var_n = defaultdict(lambda: np.zeros((self.labels_n,))) # dict: stateKey->int
+        self.var_n = defaultdict(lambda: np.zeros((self.labels_n,))) # dict: state ->int
         self.var_w = defaultdict(lambda: np.zeros((self.labels_n,)))
         self.var_q = defaultdict(lambda: np.zeros((self.labels_n,)))
         self.var_u = defaultdict(lambda: np.zeros((self.labels_n,)))
         self.var_p = defaultdict(lambda: np.zeros((self.labels_n,)))
-        self.expanded = set()
-        self.now_expanding = set()
+        self.node_type = defaultdict()
 
     def sl_action(self, board, action):
 
@@ -85,8 +85,8 @@ class ChessPlayer:
             policy = self.calc_policy(env)
             action = int(np.random.choice(range(self.labels_n), p = policy))
             action_by_value = int(np.argmax(self.var_q[state] + (self.var_n[state] > 0)*100))
-            #print(len(self.expanded))
-            #assert len(self.expanded) == (tl+1)*self.play_config.simulation_num_per_move
+            #print(len(self.node_type))
+            #assert len(self.node_type) == (tl+1)*self.play_config.simulation_num_per_move
             if action == action_by_value or env.turn < self.play_config.change_tau_turn:
                 break
             # if tl > 0 and self.play_config.logging_thinking:
@@ -151,13 +151,14 @@ class ChessPlayer:
 
         state = self.state_key(env)
 
-        while state in self.now_expanding:
-            await asyncio.sleep(self.config.play.wait_for_expanding_sleep_sec)
-
-        # is leaf?
-        if state not in self.expanded:  # reach leaf node
+        if state not in self.node_type: # new (unvisited) leaf node
             leaf_v = await self.expand_and_evaluate(env.copy())
             return leaf_v # I'm returning everything from the POV of side to move
+
+        while self.node_type[state] == NodeType.expanding: # state is leaf being expanded on another thread
+            await asyncio.sleep(self.config.play.wait_for_expanding_sleep_sec)
+
+        assert self.node_type[state] == NodeType.internal
 
         action_t = self.select_action_q_and_u(env, is_root_node)
 
@@ -189,7 +190,7 @@ class ChessPlayer:
         :return: leaf_v
         """
         state = self.state_key(env)
-        self.now_expanding.add(state)
+        self.node_type[state] = NodeType.expanding
 
         state_planes = env.canonical_input_planes()
 
@@ -201,10 +202,11 @@ class ChessPlayer:
         if env.board.turn == chess.BLACK:
             leaf_p = Config.flip_policy(leaf_p) # get it back to python-chess form
 
+        #np.testing.assert_array_equal(Config.flip_policy(Config.flip_policy(leaf_p)), leaf_p)  
+
         self.var_p[state] = leaf_p  # P is policy for next_player (black or white)
 
-        self.expanded.add(state)
-        self.now_expanding.remove(state)
+        self.node_type[state] = NodeType.internal
         return float(leaf_v)
 
     async def prediction_worker(self):
@@ -259,7 +261,7 @@ class ChessPlayer:
 
     @staticmethod
     def state_key(env: ChessEnv):
-        fen = env.board.fen().rsplit(' ',1) # drop the halfmove clock
+        fen = env.board.fen().rsplit(' ',1) # drop the move clock
         return fen[0]
 
     def select_action_q_and_u(self, env, is_root_node) -> int:

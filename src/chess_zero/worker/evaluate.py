@@ -45,12 +45,12 @@ class EvaluateWorker:
         results = []
         winning_rate = 0
         for game_idx in range(self.config.eval.game_num):
-            # ng_win := if ng_model win -> 1, lose -> 0, draw -> None
-            ng_win, white_is_best = self.play_game(self.best_model, ng_model)
-            if ng_win is not None:
-                results.append(ng_win)
-                winning_rate = sum(results) / len(results)
-            logger.debug(f"game {game_idx}: ng_win={ng_win} white_is_best_model={white_is_best} "
+            # ng_score := if ng_model win -> 1, lose -> 0, draw -> 0.5
+            current_white = (game_idx % 2 == 0)
+            ng_score = self.play_game(self.best_model, ng_model, current_white)
+            results.append(ng_score)
+            winning_rate = sum(results) / len(results)
+            logger.debug(f"game {game_idx}: ng_score={ng_score:.1f} "
                          f"winning rate {winning_rate*100:.1f}%")
             if results.count(0) >= self.config.eval.game_num * (1-self.config.eval.replace_rate):
                 logger.debug(f"lose count reach {results.count(0)} so give up challenge")
@@ -63,13 +63,12 @@ class EvaluateWorker:
         logger.debug(f"winning rate {winning_rate*100:.1f}%")
         return winning_rate >= self.config.eval.replace_rate
 
-    def play_game(self, best_model, ng_model):
+    def play_game(self, best_model, ng_model, current_white):
         env = ChessEnv().reset()
 
         best_player = ChessPlayer(self.config, best_model, play_config=self.config.eval.play_config)
         ng_player = ChessPlayer(self.config, ng_model, play_config=self.config.eval.play_config)
-        best_is_white = random() < 0.5
-        if not best_is_white:
+        if not current_white:
             black, white = best_player, ng_player
         else:
             black, white = ng_player, best_player
@@ -81,18 +80,20 @@ class EvaluateWorker:
                 action = white.action(env)
             env.step(action)
 
-        ng_win = None
+        ng_score = None
         if env.winner == Winner.white:
-            if best_is_white:
-                ng_win = 0
+            if current_white:
+                ng_score = 0
             else:
-                ng_win = 1
+                ng_score = 1
         elif env.winner == Winner.black:
-            if best_is_white:
-                ng_win = 1
+            if current_white:
+                ng_score = 1
             else:
-                ng_win = 0
-        return ng_win, best_is_white
+                ng_score = 0
+        else:
+            ng_score = 0.5
+        return ng_score
 
     def load_best_model(self):
         model = ChessModel(self.config)
