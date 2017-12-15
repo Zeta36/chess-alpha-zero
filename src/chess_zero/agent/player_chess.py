@@ -145,7 +145,7 @@ class ChessPlayer:
         if env.done:
             if env.winner == Winner.draw:
                 return 0
-            if (env.winner == Winner.white) == (env.board.turn == Chess.WHITE):
+            if (env.winner == Winner.white) == (env.board.turn == chess.WHITE):
                 return 1 # winner is side-to-move
             return -1
 

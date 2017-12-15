@@ -8,7 +8,7 @@ from chess_zero.env.chess_env import ChessEnv
 logger = getLogger(__name__)
 
 
-_DEBUG_ = False
+_DEBUG_ = True  
 
 def start(config: Config):
 
