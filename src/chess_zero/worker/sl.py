@@ -19,7 +19,7 @@ TAG_REGEX = re.compile(r"^\[([A-Za-z0-9_]+)\s+\"(.*)\"\]\s*$")
 
 
 def start(config: Config):
-    tf_util.set_session_config(per_process_gpu_memory_fraction=0.1)
+    #tf_util.set_session_config(per_process_gpu_memory_fraction=0.01)
     return SupervisedLearningWorker(config, env=ChessEnv()).start()
 
 
@@ -32,6 +32,7 @@ class SupervisedLearningWorker:
         :param chess_zero.agent.model_chess.ChessModel|None model:
         """
         self.config = config
+        self.config.play_data.nb_game_in_file = 500 # i want all pgn in one file
         self.model = model
         self.env = env     # type: ChessEnv
         self.black = None  # type: ChessPlayer
@@ -39,26 +40,78 @@ class SupervisedLearningWorker:
         self.buffer = []
 
     def start(self):
-        if self.model is None:
-            self.model = self.load_model()
+        #if self.model is None:
+            #self.model = self.load_model()
 
         self.buffer = []
-        idx = 1
+        self.idx = 1
+        start_time = time()
 
-        while True:
-            start_time = time()
-            env = self.read_game(idx)
+        for env in self.read_all_files():
             end_time = time()
-            logger.debug(f"game {idx} time={end_time - start_time} sec, "
-                         f"turn={int(env.turn/2)}:{env.observation} - Winner:{env.winner} - by resignation?:{env.resigned}")
-            if (idx % self.config.play_data.nb_game_in_file) == 0:
-                reload_best_model_weight_if_changed(self.model)
-            idx += 1
+            logger.debug(f"game {self.idx:4} time={(end_time - start_time):.3f}s "
+                         f"turn={int(env.turn/2)} {env.winner}"
+                         f"{' by resign ' if env.resigned else '           '}"
+                         f"{env.observation.split(' ')[0]:}")
+            # if (idx % self.config.play_data.nb_game_in_file) == 0:
+            #     reload_best_model_weight_if_changed(self.model)
+            start_time=end_time
+            self.idx += 1
+
+    def read_all_files(self):
+        files = find_pgn_files(self.config.resource.play_data_dir)
+        from itertools import chain
+        return chain.from_iterable(self.read_file(filename) for filename in files)
+
+
+    def read_file(self,filename):
+        pgn = open(filename, errors='ignore')
+        for offset, header in chess.pgn.scan_headers(pgn):
+            pgn.seek(offset)
+            game = chess.pgn.read_game(pgn)
+            yield self.add_to_buffer(game)
+            self.save_play_data()
+
+
+    def add_to_buffer(self,game):
+        self.env.reset()
+        self.black = ChessPlayer(self.config)
+        self.white = ChessPlayer(self.config)
+        result = game.headers["Result"]
+        actions = []
+        while not game.is_end():
+            game = game.variation(0)
+            actions.append(game.move.uci())
+
+        k = 0
+        observation = self.env.observation
+        while not self.env.done and k < len(actions):
+            if self.env.board.turn == chess.BLACK:
+                action = self.black.sl_action(observation, actions[k])
+            else:
+                action = self.white.sl_action(observation, actions[k])
+            board, info = self.env.step(action)
+            observation = board.fen()
+            k += 1
+
+        self.env.done = True
+        if not self.env.board.is_game_over() and result != '1/2-1/2':
+            self.env.resigned = True
+        if result == '1-0':
+            self.env.winner = Winner.white
+        elif result == '0-1':
+            self.env.winner = Winner.black
+        else:
+            self.env.winner = Winner.draw
+
+        self.finish_game()
+        self.save_play_data()
+        return self.env
 
     def read_game(self, idx):
         self.env.reset()
-        self.black = ChessPlayer(self.config, self.model)
-        self.white = ChessPlayer(self.config, self.model)
+        self.black = ChessPlayer(self.config)
+        self.white = ChessPlayer(self.config)
         files = find_pgn_files(self.config.resource.play_data_dir)
         if len(files) > 0:
             random.shuffle(files)
@@ -86,46 +139,17 @@ class SupervisedLearningWorker:
 
             pgn.seek(offset)
             game = chess.pgn.read_game(pgn)
-            node = game
-            result = game.headers["Result"]
-            actions = []
-            while not node.is_end():
-                next_node = node.variation(0)
-                actions.append(node.board().uci(next_node.move))
-                node = next_node
+            self.add_to_buffer(game)
             pgn.close()
-
-            k = 0
-            observation = self.env.observation
-            while not self.env.done and k < len(actions):
-                if self.env.board.turn == chess.BLACK:
-                    action = self.black.sl_action(observation, actions[k])
-                else:
-                    action = self.white.sl_action(observation, actions[k])
-                board, info = self.env.step(action)
-                observation = board.fen()
-                k += 1
-
-            self.env.done = True
-            if not self.env.board.is_game_over() and result != '1/2-1/2':
-                self.env.resigned = True
-            if result == '1-0':
-                self.env.winner = Winner.white
-            elif result == '0-1':
-                self.env.winner = Winner.black
-            else:
-                self.env.winner = Winner.draw
-
-            self.finish_game()
-            self.save_play_data(write=idx % self.config.play_data.nb_game_in_file == 0)
+            self.save_play_data()
             self.remove_play_data()
         return self.env
 
-    def save_play_data(self, write=True):
+    def save_play_data(self):
         data = self.black.moves + self.white.moves
         self.buffer += data
 
-        if not write:
+        if self.idx % self.config.play_data.nb_game_in_file != 0:
             return
 
         rc = self.config.resource

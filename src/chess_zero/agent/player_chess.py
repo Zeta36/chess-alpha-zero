@@ -28,7 +28,7 @@ logger = getLogger(__name__)
 
 
 class ChessPlayer:
-    def __init__(self, config: Config, model, play_config=None):
+    def __init__(self, config: Config, model=None, play_config=None):
 
         self.config = config
         self.model = model
