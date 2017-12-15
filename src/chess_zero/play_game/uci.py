@@ -7,12 +7,6 @@ from chess_zero.env.chess_env import ChessEnv
 
 logger = getLogger(__name__)
 
-
-_DEBUG_ = False  
-
-if _DEBUG_:
-    ff = open('helloworld.txt','w')
-
 def start(config: Config):
 
     PlayWithHumanConfig().update_play_config(config.play)
@@ -22,9 +16,6 @@ def start(config: Config):
 
     while True:
         line=input()
-        if _DEBUG_:
-            ff.write(line+'\n')
-            ff.flush()
         words=line.rstrip().split(" ",1)
         if words[0] == "uci":
             print("id name ChessZero")
@@ -49,18 +40,12 @@ def start(config: Config):
                         env.step(w)
         elif words[0]=="go":
             action = chess_model.move_by_ai(env)
-            if _DEBUG_:
-                ff.write(f">bestmove {action}\n")
-                ff.flush()
             print(f"bestmove {action}")
         elif words[0]=="stop":
             pass #lol
         elif words[0]=="quit":
             break
-            
+
 def info(depth,move, score):
     print(f"info score cp {int(score*100)} depth {depth} pv {move}")
     sys.stdout.flush()
-    if _DEBUG_:
-        ff.write(f"info score cp {int(score*100)} depth {depth} pv {move}\n")
-        ff.flush()
