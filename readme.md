@@ -39,7 +39,8 @@ Here you can see an example of a game played for me against this model (AI plays
 ![partida1](https://user-images.githubusercontent.com/17341905/33597844-ea53c8ae-d9a0-11e7-8564-4b9b0f35a221.gif)
 
 Here we have a game trained by @bame55 (AI plays white):
-![partida1](https://user-images.githubusercontent.com/17341905/34030278-8796f7c6-e16c-11e7-9ba4-97af15f2cde5.gif)
+
+![partida3](https://user-images.githubusercontent.com/17341905/34030278-8796f7c6-e16c-11e7-9ba4-97af15f2cde5.gif)
 
 This model plays in this way after only 5 epoch iterations of the 'opt' worker, the 'eval' worker changed 4 times the best model (4 of 5). At this moment the loss of the 'opt' worker is 5.1 (and still seems to be converging very well).
 
