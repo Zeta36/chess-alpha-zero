@@ -177,9 +177,9 @@ class OptimizeWorker:
         z_list = []
         env = ChessEnv().reset()
         for state_fen, policy, z in data:
-            # move_number = int(state_fen.split(" ")[5])
-            print (ChessEnv.maybe_flip_fen(ChessEnv.maybe_flip_fen(state_fen,True),True).split(' ')[0])
-            assert ChessEnv.replace_tags_board(state_fen) == ChessEnv.maybe_flip_fen(ChessEnv.maybe_flip_fen(state_fen,True),True).split(' ')[0]
+            # f1 = ChessEnv.replace_tags_board(state_fen)
+            # f2 = ChessEnv.maybe_flip_fen(ChessEnv.maybe_flip_fen(state_fen,True),True).split(' ')[0]
+            # assert f1 == f2
             next_move = env.deltamove(state_fen)
             if next_move == None: # new game!
                 env.reset()
