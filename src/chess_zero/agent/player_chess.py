@@ -75,9 +75,7 @@ class ChessPlayer:
 
     def action(self, env, can_stop = True):
         self.reset()
-
-        self.my_color = env.board.turn
-
+        
         state = self.state_key(env)
 
         for tl in range(self.play_config.thinking_loop):
@@ -289,12 +287,7 @@ class ChessPlayer:
 
         u_ = self.play_config.c_puct * p_ * xx_ / (1 + self.var_n[state]) # element-wise division...
 
-        # if env.board.turn == self.my_color:
         v_ = (self.var_q[state] + u_ + 1000) * legal_labels
-        # else:
-        #     # When enemy's selecting action, flip Q-Value.
-        #     v_ = (-self.var_q[state] + u_ + 1000) * legal_labels
-
         # noinspection PyTypeChecker
         action_t = int(np.argmax(v_))
         return action_t

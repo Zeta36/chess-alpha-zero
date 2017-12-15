@@ -181,7 +181,6 @@ class OptimizeWorker:
             print (ChessEnv.maybe_flip_fen(ChessEnv.maybe_flip_fen(state_fen,True),True).split(' ')[0])
             assert ChessEnv.replace_tags_board(state_fen) == ChessEnv.maybe_flip_fen(ChessEnv.maybe_flip_fen(state_fen,True),True).split(' ')[0]
             next_move = env.deltamove(state_fen)
-            #print(state_fen)
             if next_move == None: # new game!
                 env.reset()
             else:

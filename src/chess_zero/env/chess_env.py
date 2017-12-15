@@ -27,7 +27,6 @@ class ChessEnv:
         self.done = False
         self.winner = None  # type: Winner
         self.resigned = False
-        # self.movements = []
 
     def reset(self):
         self.board = chess.Board()
@@ -35,7 +34,6 @@ class ChessEnv:
         self.done = False
         self.winner = None
         self.resigned = False
-        # self.movements = []
         return self
 
     def update(self, board):
@@ -44,11 +42,8 @@ class ChessEnv:
         self.done = False
         self.winner = None
         self.resigned = False
-        # self.movements = history
         return self
 
-    # def set_history(self, history):
-    #     self.movements = history
 
     def step(self, action):
         """
@@ -162,22 +157,18 @@ class ChessEnv:
         for i in range(8):
             board_fen = self.maybe_flip_fen(self.board.fen(),flip)
             history_both.extend(self.to_planes(fen = board_fen))
-            #print(self.board.move_stack)
             if len(self.board.move_stack) > 0:
-                #print(board_fen)
                 history_moves.append(self.board.pop())
 
         for mov in reversed(history_moves):
             self.board.push(mov)
         history_both = np.asarray(history_both)
-        #print (history_both.shape)
         assert history_both.shape == (96, 8, 8)
         return history_both
 
     def copy(self):
         env = copy.copy(self)
         env.board = copy.copy(self.board)
-        # env.movements = copy.copy(self.movements)
         return env
 
     @staticmethod
