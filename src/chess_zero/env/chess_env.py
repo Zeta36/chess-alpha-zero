@@ -12,13 +12,22 @@ Winner = enum.Enum("Winner", "black white draw")
 
 
 class ChessEnv:
+
+    one_hot = {}
+    one_hot.update(dict.fromkeys(['K', 'k'], [1, 0, 0, 0, 0, 0]))
+    one_hot.update(dict.fromkeys(['Q', 'q'], [0, 1, 0, 0, 0, 0]))
+    one_hot.update(dict.fromkeys(['R', 'r'], [0, 0, 1, 0, 0, 0]))
+    one_hot.update(dict.fromkeys(['B', 'b'], [0, 0, 0, 1, 0, 0]))
+    one_hot.update(dict.fromkeys(['N', 'n'], [0, 0, 0, 0, 1, 0]))
+    one_hot.update(dict.fromkeys(['P', 'p'], [0, 0, 0, 0, 0, 1]))
+
     def __init__(self):
         self.board = None
         self.turn = 0
         self.done = False
         self.winner = None  # type: Winner
         self.resigned = False
-        self.movements = []
+        # self.movements = []
 
     def reset(self):
         self.board = chess.Board()
@@ -26,20 +35,20 @@ class ChessEnv:
         self.done = False
         self.winner = None
         self.resigned = False
-        self.movements = []
+        # self.movements = []
         return self
 
-    def update(self, board, history=list()):
+    def update(self, board):
         self.board = chess.Board(board)
         self.turn = self.board.fullmove_number
         self.done = False
         self.winner = None
         self.resigned = False
-        self.movements = history
+        # self.movements = history
         return self
 
-    def set_history(self, history):
-        self.movements = history
+    # def set_history(self, history):
+    #     self.movements = history
 
     def step(self, action):
         """
@@ -52,13 +61,13 @@ class ChessEnv:
 
         self.board.push_uci(action)
 
-        if len(self.movements) > 8:
-            self.movements.pop(0)
-        self.movements.append(self.board.fen())
+        # if len(self.movements) > 8:
+        #     self.movements.pop(0)
+        # self.movements.append(self.board.fen())
 
         self.turn += 1
 
-        if self.board.is_game_over() or self.board.can_claim_threefold_repetition():
+        if self.board.is_game_over(claim_draw=True):
             self._game_over()
 
         return self.board, {}
@@ -66,7 +75,7 @@ class ChessEnv:
     def _game_over(self):
         self.done = True
         if self.winner is None:
-            result = self.board.result()
+            result = self.board.result(claim_draw = True)
             if result == '1-0':
                 self.winner = Winner.white
             elif result == '0-1':
@@ -90,74 +99,119 @@ class ChessEnv:
         self.done = True
         self.winner = Winner.draw
 
-    def canonical_bw_plane(self):
+    def canonical_input_planes(self):
         current_player = self.board.fen().split(" ")[1]
-        return black_and_white_plane(self, current_player == 'b')
+        flip = (current_player == 'b')
 
-    def maybe_flip(self, brd, flip = False):
+        myboard = self.maybe_flip_fen(self.board.fen(), flip)
+        current_aux_planes = self.aux_planes(myboard)
+
+        history_both = self.black_and_white_plane(flip)
+
+        ret = np.vstack((history_both, current_aux_planes))
+        assert ret.shape == (101, 8, 8)
+        return ret
+
+    @staticmethod
+    def maybe_flip_fen(fen, flip = False):
         if flip == False:
-            return brd
-        # print ("".join( [brd[i : i + 8] for i in reversed(range(0, 64, 8))] ))
-        return "".join( [brd[i : i + 8] for i in reversed(range(0, 64, 8))] )
+            return fen
+        foo = fen.split(' ')
+        foop = ChessEnv.replace_tags_board(foo[0])
+        def swapcase(a):
+            return a.lower() if a.isupper() else a.upper()
+        return "".join( [foop[i : i + 8] for i in reversed(range(0, 64, 8))] ) \
+            + " " + ('w' if foo[1]=='b' else 'b') \
+            + " " + "".join( ['-' if a == '-' else swapcase(a) for a in foo[2]] ) \
+            + " " + foo[3] + " " + foo[4] + " " + foo[5]
+
+    @staticmethod
+    def to_planes(fen):
+        board_state = ChessEnv.replace_tags_board(fen)
+        pieces_p1 = [ChessEnv.one_hot[val] if val.isupper() else [0, 0, 0, 0, 0, 0] \
+            for val in board_state]
+        pieces_p1 = np.transpose(np.reshape(pieces_p1, (8, 8, 6)), (2, 0, 1))
+        pieces_p2 = [ChessEnv.one_hot[val] if val.islower() else [0, 0, 0, 0, 0, 0] \
+            for val in board_state]
+        pieces_p2 = np.transpose(np.reshape(pieces_p2, (8, 8, 6)), (2, 0, 1))
+        assert pieces_p1.shape == (6, 8, 8)
+        state = np.vstack((pieces_p1, pieces_p2))
+        assert state.shape == (12, 8, 8)
+        return state
+
+    @staticmethod
+    def aux_planes(fen):
+        foo = fen.split(' ')
+        castling_planes = [ np.full((8,8), int('K' in foo[2])) ]
+        castling_planes.append( np.full((8,8), int('Q' in foo[2])))
+        castling_planes.append( np.full((8,8), int('k' in foo[2])))
+        castling_planes.append( np.full((8,8), int('q' in foo[2])))
+        castling_planes = np.asarray(castling_planes)
+        assert castling_planes.shape == (4,8,8)
+        fifty_move_number = foo[4]
+        fifty_move_plane = [np.full((8, 8), int(fifty_move_number), dtype=int)]
+        ret = np.vstack((castling_planes, fifty_move_plane))
+        assert ret.shape == (5,8,8)
+        return ret
 
     # this can be used to augment training data (easier) OR dim reduction
     def black_and_white_plane(self, flip = False):
         # flip = True applies the flip + invert color invariant transformation
-        one_hot = {}
-        one_hot.update(dict.fromkeys(['K', 'k'], [1, 0, 0, 0, 0, 0]))
-        one_hot.update(dict.fromkeys(['Q', 'q'], [0, 1, 0, 0, 0, 0]))
-        one_hot.update(dict.fromkeys(['R', 'r'], [0, 0, 1, 0, 0, 0]))
-        one_hot.update(dict.fromkeys(['B', 'b'], [0, 0, 0, 1, 0, 0]))
-        one_hot.update(dict.fromkeys(['N', 'n'], [0, 0, 0, 0, 1, 0]))
-        one_hot.update(dict.fromkeys(['P', 'p'], [0, 0, 0, 0, 0, 1]))
 
-        history_p1 = [] #side to move
-        history_p2 = [] #side not to move
+        # history_p1 = [] #side to move
+        # history_p2 = [] #side not to move
+        history_both = []
+        history_moves = []
 
         # history planes
         for i in range(8):
-            if i < len(self.movements):
-                board_state = self.replace_tags_board(self.movements[i])
-                board_state = self.maybe_flip(board_state.split(" ")[0], flip) 
-                history_p1_aux = [one_hot[val] if val.isupper() != flip else [0, 0, 0, 0, 0, 0] \
-                    for val in board_state]
-                history_p1.append(np.transpose(np.reshape(history_p1_aux, (8, 8, 6)), (2, 0, 1)))
-                history_p2_aux = [one_hot[val] if val.islower() != flip else [0, 0, 0, 0, 0, 0] \
-                    for val in board_state]
-                history_p2.append(np.transpose(np.reshape(history_p2_aux, (8, 8, 6)), (2, 0, 1)))
-            else:
-                history_p1_aux = [[0, 0, 0, 0, 0, 0] for _ in range(64)]
-                history_p1.append(np.transpose(np.reshape(history_p1_aux, (8, 8, 6)), (2, 0, 1)))
-                history_p2_aux = [[0, 0, 0, 0, 0, 0] for _ in range(64)]
-                history_p2.append(np.transpose(np.reshape(history_p2_aux, (8, 8, 6)), (2, 0, 1)))
+            board_fen = self.maybe_flip_fen(self.board.fen(),flip)
+            history_both.extend(self.to_planes(fen = board_fen))
+            #print(self.board.move_stack)
+            if len(self.board.move_stack) > 0:
+                #print(board_fen)
+                history_moves.append(self.board.pop())
 
-        # current state plane
-        board_state = self.replace_tags()
-        board_state = self.maybe_flip(board_state.split(" ")[0], flip) 
-        board_p1 = [one_hot[val] if val.isupper() != flip else [0, 0, 0, 0, 0, 0] \
-            for val in board_state]
-        history_p1.append(np.transpose(np.reshape(board_p1, (8, 8, 6)), (2, 0, 1)))
-        board_p2 = [one_hot[val] if val.islower() != flip else [0, 0, 0, 0, 0, 0] \
-            for val in board_state]
-        history_p2.append(np.transpose(np.reshape(board_p2, (8, 8, 6)), (2, 0, 1)))
+            # if i < len(self.movements):
+            #     board_state = self.maybe_flip_fen(self.movements[i], flip) 
+            #     history_both.append(self.to_planes(fen = board_state))
+            # else:
+            #     history_both.append(np.transpose(np.zeros(shape = (8, 8, 6)), (2, 0, 1)))
+            #     history_both.append(np.transpose(np.zeros(shape = (8, 8, 6)), (2, 0, 1)))
 
-        # one-hot integer plane current player turn, xor if flipped
-        current_player = self.board.fen().split(" ")[1]
-        current_player = np.full((8, 8), int((current_player == 'w') != flip), dtype=int)
+        for mov in reversed(history_moves):
+            self.board.push(mov)
 
-        # fifty move rule number
-        fifty_move_number = self.board.fen().split(" ")[4]
-        fifty_move_number = np.full((8, 8), int(fifty_move_number), dtype=int)
+        # # current state plane
+        # board_state = self.replace_tags()
+        # board_state = self.maybe_flip(board_state.split(" ")[0], flip) 
+        # board_p1 = [one_hot[val] if (val != '1' and val.isupper() != flip) else [0, 0, 0, 0, 0, 0] \
+        #     for val in board_state]
+        # history_p1.append(np.transpose(np.reshape(board_p1, (8, 8, 6)), (2, 0, 1)))
+        # board_p2 = [one_hot[val] if (val != '1' and val.islower() != flip) else [0, 0, 0, 0, 0, 0] \
+        #     for val in board_state]
+        # history_p2.append(np.transpose(np.reshape(board_p2, (8, 8, 6)), (2, 0, 1)))
 
-        return history_p1, history_p2, current_player, fifty_move_number
+        # # one-hot integer plane current player turn, xor if flipped
+        # current_player = self.board.fen().split(" ")[1]
+        # current_player = np.full((8, 8), int((current_player == 'w') != flip), dtype=int)
+
+        # # fifty move rule number
+        # fifty_move_number = self.board.fen().split(" ")[4]
+        # fifty_move_number = np.full((8, 8), int(fifty_move_number), dtype=int)
+        history_both = np.asarray(history_both)
+        #print (history_both.shape)
+        assert history_both.shape == (96, 8, 8)
+        return history_both
 
     def copy(self):
         env = copy.copy(self)
         env.board = copy.copy(self.board)
-        env.movements = copy.copy(self.movements)
+        # env.movements = copy.copy(self.movements)
         return env
 
-    def replace_tags_board(self, board_san):
+    @staticmethod
+    def replace_tags_board(board_san):
         board_san = board_san.split(" ")[0]
         board_san = board_san.replace("2", "11")
         board_san = board_san.replace("3", "111")
@@ -169,7 +223,7 @@ class ChessEnv:
         return board_san.replace("/", "")
 
     def replace_tags(self):
-        return self.replace_tags_board(self.board.fen())
+        return ChessEnv.replace_tags_board(self.board.fen())
 
     def render(self):
         print("\n")
@@ -179,3 +233,13 @@ class ChessEnv:
     @property
     def observation(self):
         return self.board.fen()
+
+    def deltamove(self, fen_next):
+        moves = [x for x in self.board.legal_moves]
+        for mov in moves:
+            self.board.push(mov)
+            fee = self.board.fen()
+            self.board.pop()
+            if fee == fen_next:
+                return mov.uci()
+        return None

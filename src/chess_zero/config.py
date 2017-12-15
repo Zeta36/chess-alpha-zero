@@ -1,4 +1,5 @@
 import os
+import numpy as np
 
 
 def _project_dir():
@@ -9,6 +10,11 @@ def _project_dir():
 def _data_dir():
     return os.path.join(_project_dir(), "data")
 
+def flipped_uci_labels():
+    def repl(x):
+        return "".join([(str(9-int(a)) if a.isdigit() else a) for a in x])
+        
+    return  [repl(x) for x in create_uci_labels()]
 
 def create_uci_labels():
     labels_array = []
@@ -44,6 +50,11 @@ def create_uci_labels():
 
 
 class Config:
+    labels = create_uci_labels()
+    n_labels = int(len(labels))
+    flipped_labels = flipped_uci_labels()
+    unflipped_index = None
+
     def __init__(self, config_type="mini"):
         self.opts = Options()
         self.resource = ResourceConfig()
@@ -61,9 +72,17 @@ class Config:
         self.play_data = c.PlayDataConfig()
         self.trainer = c.TrainerConfig()
         self.eval = c.EvaluateConfig()
-        self.labels = create_uci_labels()
-        self.n_labels = len(self.labels)
+        self.labels = Config.labels
+        self.n_labels = Config.n_labels
+        self.flipped_labels = Config.flipped_labels
 
+    @staticmethod
+    def flip_policy(pol):
+        return np.asarray([pol[Config.unflipped_index[i]] for i in range(Config.n_labels)])
+
+Config.unflipped_index = [Config.labels.index(x) for x in Config.flipped_labels]
+# print(Config.labels)
+# print(Config.flipped_labels)
 
 class Options:
     new = False
@@ -104,8 +123,8 @@ class ResourceConfig:
 
 class PlayWithHumanConfig:
     def __init__(self):
-        self.simulation_num_per_move = 100
-        self.thinking_loop = 5
+        self.simulation_num_per_move = 400
+        self.thinking_loop = 1
         self.logging_thinking = True
         self.c_puct = 3
         self.parallel_search_num = 16
@@ -115,7 +134,6 @@ class PlayWithHumanConfig:
 
     def update_play_config(self, pc):
         """
-
         :param PlayConfig pc:
         :return:
         """

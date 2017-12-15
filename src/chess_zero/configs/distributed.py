@@ -26,7 +26,7 @@ class PlayConfig:
         self.noise_eps = 0.25
         self.dirichlet_alpha = 0.3
         self.change_tau_turn = 10
-        self.virtual_loss = 3
+        self.virtual_loss = 0 #3
         self.prediction_queue_size = 16
         self.parallel_search_num = 16
         self.prediction_worker_sleep_sec = 0.00001
@@ -43,6 +43,7 @@ class TrainerConfig:
         self.start_total_steps = 0
         self.save_model_steps = 2000
         self.load_data_steps = 1000
+        self.loss_weights = [1.0, 1.0] # prevent value overfit in SL
 
 
 class ModelConfig:

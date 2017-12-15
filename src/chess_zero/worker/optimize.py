@@ -5,10 +5,10 @@ from time import sleep
 
 import keras.backend as k
 import numpy as np
-from keras.optimizers import SGD
+from keras.optimizers import SGD, Adam
 
-from chess_zero.agent.model_chess import ChessModel, objective_function_for_policy, \
-    objective_function_for_value
+from chess_zero.agent.model_chess import ChessModel, loss_function_for_policy, \
+    loss_function_for_value
 from chess_zero.config import Config
 from chess_zero.lib import tf_util
 from chess_zero.lib.data_helper import get_game_data_filenames, read_game_data_from_file, \
@@ -41,7 +41,7 @@ class OptimizeWorker:
     def training(self):
         self.compile_model()
         last_load_data_step = last_save_step = total_steps = self.config.trainer.start_total_steps
-        min_data_size_to_learn = 10000
+        min_data_size_to_learn = 4096
         self.load_play_data()
 
         while True:
@@ -50,7 +50,7 @@ class OptimizeWorker:
                 sleep(60)
                 self.load_play_data()
                 continue
-            self.update_learning_rate(total_steps)
+            #self.update_learning_rate(total_steps)
             steps = self.train_epoch(self.config.trainer.epoch_to_checkpoint)
             total_steps += steps
             if last_save_step + self.config.trainer.save_model_steps < total_steps:
@@ -66,26 +66,27 @@ class OptimizeWorker:
         state_ary, policy_ary, z_ary = self.dataset
         self.model.model.fit(state_ary, [policy_ary, z_ary],
                              batch_size=tc.batch_size,
-                             epochs=epochs)
+                             epochs=epochs,
+                             shuffle=True)
         steps = (state_ary.shape[0] // tc.batch_size) * epochs
         return steps
 
     def compile_model(self):
-        self.optimizer = SGD(lr=1e-2, momentum=0.9)
-        losses = [objective_function_for_policy, objective_function_for_value]
-        self.model.model.compile(optimizer=self.optimizer, loss=losses)
+        self.optimizer = Adam()#SGD(lr=1e-2, momentum=0.9) # Adam better?
+        losses = [loss_function_for_policy, loss_function_for_value] # avoid overfit for supervised 
+        self.model.model.compile(optimizer=self.optimizer, loss=losses, loss_weights=self.config.trainer.loss_weights)
 
-    def update_learning_rate(self, total_steps):
-        if total_steps < 100000:
-            lr = 2e-2
-        elif total_steps < 500000:
-            lr = 2e-3
-        elif total_steps < 900000:
-            lr = 2e-4
-        else:
-            lr = 2.5e-5  # means (1e-4 / 4): the paper batch size=2048, ours is 512.
-        k.set_value(self.optimizer.lr, lr)
-        logger.debug(f"total step={total_steps}, set learning rate to {lr}")
+    # def update_learning_rate(self, total_steps):
+    #     if total_steps < 100000:
+    #         lr = 2e-2
+    #     elif total_steps < 500000:
+    #         lr = 2e-3
+    #     elif total_steps < 900000:
+    #         lr = 2e-4
+    #     else:
+    #         lr = 2.5e-5  # means (1e-4 / 4): the paper batch size=2048, ours is 512.
+    #     k.set_value(self.optimizer.lr, lr)
+    #     logger.debug(f"total step={total_steps}, set learning rate to {lr}")
 
     def save_current_model(self):
         rc = self.config.resource
@@ -174,36 +175,35 @@ class OptimizeWorker:
         state_list = []
         policy_list = []
         z_list = []
-        aux_move_number = 1
-        movements = []
-        for state, policy, z in data:
-            move_number = int((ChessEnv().update(state, movements)).board.fen().split(" ")[5])
-            if aux_move_number < move_number:
-                if len(movements) > 8:
-                    movements.pop(0)
-                movements.append(env.observation)
-                aux_move_number = move_number
+        # aux_move_number = 1
+        # movements = []
+        env = ChessEnv().reset()
+        for state_fen, policy, z in data:
+            ##assert state_fen == ChessEnv().update(state_fen,movements).board.fen()
+            # move_number = int(state_fen.split(" ")[5])
+            next_move = env.deltamove(state_fen)
+            #print(state_fen)
+            if next_move == None: # new game!
+                env.reset()
             else:
-                aux_move_number = 1
-                movements = []
+                env.step(next_move)
+            # if aux_move_number < move_number:
+            #     if len(movements) > 8:
+            #         movements.pop(0)
+            #     movements.append(env.observation)
+            #     aux_move_number = move_number
+            # else:
+            #     aux_move_number = 1
+            #     movements = []
 
-            env = ChessEnv().update(state, movements)
+            # env = ChessEnv().update(state_fen, movements)
 
-            black_ary, white_ary, current_player, fifty_move_number = env.black_and_white_plane()
-            state = [white_ary, black_ary]
-            state = np.reshape(np.reshape(np.array(state), (18, 6, 8, 8)), (108, 8, 8))
-            state = np.vstack((state, np.reshape(current_player, (1, 8, 8)), np.reshape(fifty_move_number, (1, 8, 8))))
-            state_list.append(state)
+            state_planes = env.canonical_input_planes()
+            state_list.append(state_planes)
+            side_to_move = state_fen.split(" ")[1]
+            if side_to_move == 'b':
+                policy = Config.flip_policy(policy)
             policy_list.append(policy)
             z_list.append(z)
-
-            # if augment:
-            #     black_ary2, white_ary2, current_player2, fifty_move_number2 = env.black_and_white_plane(flip = True)
-            #     state2 = [white_ary2, black_ary2]
-            #     state2 = np.reshape(np.reshape(np.array(state2), (18, 6, 8, 8)), (108, 8, 8))
-            #     state2 = np.vstack((state2, np.reshape(current_player2, (1, 8, 8)), np.reshape(fifty_move_number2, (1, 8, 8))))
-            #     state_list.append(state2)
-            #     policy_list.append(policy) # idk how to flip policy
-            #     z_list.append(z)
 
         return np.array(state_list), np.array(policy_list), np.array(z_list)

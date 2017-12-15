@@ -14,7 +14,7 @@ def create_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument("cmd", help="what to do", choices=CMD_LIST)
     parser.add_argument("--new", help="run from new best model", action="store_true")
-    parser.add_argument("--type", help="use normal setting", default="normal")
+    parser.add_argument("--type", help="use normal setting", default="mini")
     parser.add_argument("--total-step", help="set TrainerConfig.start_total_steps", type=int)
     return parser
 

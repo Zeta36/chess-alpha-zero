@@ -1,19 +1,16 @@
 import sys
 from logging import getLogger
-
 import chess
 from chess_zero.config import Config, PlayWithHumanConfig
 from chess_zero.play_game.game_model import PlayWithHuman
 from chess_zero.env.chess_env import ChessEnv
-from random import random
 
 logger = getLogger(__name__)
+
 
 _DEBUG_ = False
 
 def start(config: Config):
-    if _DEBUG_:
-        ff = open('helloworld.txt','w')
 
     PlayWithHumanConfig().update_play_config(config.play)
 
@@ -40,7 +37,7 @@ def start(config: Config):
             words=words[1].split(" ",1)
             #print(words)
             if words[0]=="startpos":
-                env.update(chess.STARTING_FEN)
+                env.reset()
             else:
                 env.update(words[0])
             if(len(words)>1):
@@ -59,3 +56,12 @@ def start(config: Config):
             pass #lol
         elif words[0]=="quit":
             break
+
+if _DEBUG_:
+    ff = open('helloworld.txt','w')
+def info(depth,move, score):
+    print(f"info score cp {int(score*100)} depth {depth} pv {move}")
+    sys.stdout.flush()
+    if _DEBUG_:
+        ff.write(f"info score cp {int(score*100)} depth {depth} pv {move}\n")
+        ff.flush()

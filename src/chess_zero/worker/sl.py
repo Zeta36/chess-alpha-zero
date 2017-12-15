@@ -39,8 +39,8 @@ class SupervisedLearningWorker:
         self.buffer = []
 
     def start(self):
-        if self.model is None:
-            self.model = self.load_model()
+        #if self.model is None:
+            #self.model = self.load_model()
 
         self.buffer = []
         idx = 1
@@ -51,8 +51,8 @@ class SupervisedLearningWorker:
             end_time = time()
             logger.debug(f"game {idx} time={end_time - start_time} sec, "
                          f"turn={int(env.turn/2)}:{env.observation} - Winner:{env.winner} - by resignation?:{env.resigned}")
-            if (idx % self.config.play_data.nb_game_in_file) == 0:
-                reload_best_model_weight_if_changed(self.model)
+            # if (idx % self.config.play_data.nb_game_in_file) == 0:
+            #     reload_best_model_weight_if_changed(self.model)
             idx += 1
 
     def read_game(self, idx):

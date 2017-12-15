@@ -1,4 +1,6 @@
 def set_session_config(per_process_gpu_memory_fraction=None, allow_growth=None):
+    # DOES NOTHING LOL
+    return
     """
 
     :param allow_growth: When necessary, reserve memory

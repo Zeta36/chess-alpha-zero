@@ -11,9 +11,9 @@ from keras.engine.topology import Input
 from keras.engine.training import Model
 from keras.layers.convolutional import Conv2D
 from keras.layers.core import Activation, Dense, Flatten
-from keras.layers.merge import Add
+from keras.layers.merge import Add, Multiply
 from keras.layers.normalization import BatchNormalization
-from keras.losses import mean_squared_error
+from keras.losses import mean_squared_error, categorical_crossentropy
 from keras.regularizers import l2
 
 from chess_zero.config import Config
@@ -29,7 +29,7 @@ class ChessModel:
 
     def build(self):
         mc = self.config.model
-        in_x = x = Input((110, 8, 8))
+        in_x = x = Input((101, 8, 8))
 
         # (batch, channels, height, width)
         x = Conv2D(filters=mc.cnn_filter_num, kernel_size=mc.cnn_filter_size, padding="same",
@@ -138,10 +138,11 @@ class ChessModel:
                 pass
 
 
-def objective_function_for_policy(y_true, y_pred):
+def loss_function_for_policy(y_true, y_pred):
+    #return categorical_crossentropy(y_true,y_pred)
     # can use categorical_crossentropy??
     return k.sum(-y_true * k.log(y_pred + k.epsilon()), axis=-1)
 
 
-def objective_function_for_value(y_true, y_pred):
+def loss_function_for_value(y_true, y_pred):
     return mean_squared_error(y_true, y_pred)

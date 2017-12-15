@@ -19,14 +19,14 @@ class PlayDataConfig:
 
 class PlayConfig:
     def __init__(self):
-        self.simulation_num_per_move = 10
+        self.simulation_num_per_move = 20
         self.thinking_loop = 1
         self.logging_thinking = False
         self.c_puct = 1.5
         self.noise_eps = 0.25
         self.dirichlet_alpha = 0.3
         self.change_tau_turn = 10
-        self.virtual_loss = 3
+        self.virtual_loss = 1 #3
         self.prediction_queue_size = 16
         self.parallel_search_num = 16
         self.prediction_worker_sleep_sec = 0.00001
@@ -38,11 +38,12 @@ class PlayConfig:
 
 class TrainerConfig:
     def __init__(self):
-        self.batch_size = 128
+        self.batch_size = 384 # tune this to your gpu memory
         self.epoch_to_checkpoint = 1
         self.start_total_steps = 0
-        self.save_model_steps = 100
+        self.save_model_steps = 25
         self.load_data_steps = 100
+        self.loss_weights = [1.0, 0.01] # prevent value overfit in SL
 
 
 class ModelConfig:
