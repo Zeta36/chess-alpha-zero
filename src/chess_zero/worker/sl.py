@@ -9,8 +9,6 @@ from chess_zero.config import Config
 from chess_zero.env.chess_env import ChessEnv, Winner
 from chess_zero.lib import tf_util
 from chess_zero.lib.data_helper import get_game_data_filenames, write_game_data_to_file, find_pgn_files
-from chess_zero.lib.model_helper import load_best_model_weight, save_as_best_model, \
-    reload_best_model_weight_if_changed
 import random
 
 logger = getLogger(__name__)
@@ -24,7 +22,7 @@ def start(config: Config):
 
 
 class SupervisedLearningWorker:
-    def __init__(self, config: Config, env=None, model=None):
+    def __init__(self, config: Config, env=None):
         """
 
         :param config:
@@ -32,17 +30,13 @@ class SupervisedLearningWorker:
         :param chess_zero.agent.model_chess.ChessModel|None model:
         """
         self.config = config
-        self.config.play_data.nb_game_in_file = 500 # i want all pgn in one file
-        self.model = model
+        #self.config.play_data.nb_game_in_file = 100
         self.env = env     # type: ChessEnv
         self.black = None  # type: ChessPlayer
         self.white = None  # type: ChessPlayer
         self.buffer = []
 
     def start(self):
-        #if self.model is None:
-            #self.model = self.load_model()
-
         self.buffer = []
         self.idx = 1
         start_time = time()
@@ -53,13 +47,14 @@ class SupervisedLearningWorker:
                          f"turn={int(env.turn/2)} {env.winner}"
                          f"{' by resign ' if env.resigned else '           '}"
                          f"{env.observation.split(' ')[0]:}")
-            # if (idx % self.config.play_data.nb_game_in_file) == 0:
-            #     reload_best_model_weight_if_changed(self.model)
             start_time=end_time
             self.idx += 1
 
+        self.flush_buffer()
+
     def read_all_files(self):
         files = find_pgn_files(self.config.resource.play_data_dir)
+        print (files)
         from itertools import chain
         return chain.from_iterable(self.read_file(filename) for filename in files)
 
@@ -70,7 +65,6 @@ class SupervisedLearningWorker:
             pgn.seek(offset)
             game = chess.pgn.read_game(pgn)
             yield self.add_to_buffer(game)
-            self.save_play_data()
 
 
     def add_to_buffer(self,game):
@@ -82,7 +76,6 @@ class SupervisedLearningWorker:
         while not game.is_end():
             game = game.variation(0)
             actions.append(game.move.uci())
-
         k = 0
         observation = self.env.observation
         while not self.env.done and k < len(actions):
@@ -108,50 +101,51 @@ class SupervisedLearningWorker:
         self.save_play_data()
         return self.env
 
-    def read_game(self, idx):
-        self.env.reset()
-        self.black = ChessPlayer(self.config)
-        self.white = ChessPlayer(self.config)
-        files = find_pgn_files(self.config.resource.play_data_dir)
-        if len(files) > 0:
-            random.shuffle(files)
-            filename = files[0]
-            pgn = open(filename, errors='ignore')
-            size = os.path.getsize(filename)
-            pos = random.randint(0, size)
-            pgn.seek(pos)
+    # def read_game(self, idx):
+        # self.env.reset()
+        # self.black = ChessPlayer(self.config)
+        # self.white = ChessPlayer(self.config)
+        # files = find_pgn_files(self.config.resource.play_data_dir)
+        # if len(files) > 0:
+        #     random.shuffle(files)
+        #     filename = files[0]
+        #     pgn = open(filename, errors='ignore')
+        #     size = os.path.getsize(filename)
+        #     pos = random.randint(0, size)
+        #     pgn.seek(pos)
 
-            line = pgn.readline()
-            offset = 0
-            # Parse game headers.
-            while line:
-                if line.isspace() or line.startswith("%"):
-                    line = pgn.readline()
-                    continue
+        #     line = pgn.readline()
+        #     offset = 0
+        #     # Parse game headers.
+        #     while line:
+        #         if line.isspace() or line.startswith("%"):
+        #             line = pgn.readline()
+        #             continue
 
-                # Read header tags.
-                tag_match = TAG_REGEX.match(line)
-                if tag_match:
-                    offset = pgn.tell()
-                    break
+        #         # Read header tags.
+        #         tag_match = TAG_REGEX.match(line)
+        #         if tag_match:
+        #             offset = pgn.tell()
+        #             break
 
-                line = pgn.readline()
+        #         line = pgn.readline()
 
-            pgn.seek(offset)
-            game = chess.pgn.read_game(pgn)
-            self.add_to_buffer(game)
-            pgn.close()
-            self.save_play_data()
-            self.remove_play_data()
-        return self.env
+        #     pgn.seek(offset)
+        #     game = chess.pgn.read_game(pgn)
+        #     self.add_to_buffer(game)
+        #     pgn.close()
+        #     self.save_play_data()
+        #     self.remove_play_data()
+        # return self.env
 
     def save_play_data(self):
         data = self.black.moves + self.white.moves
         self.buffer += data
 
-        if self.idx % self.config.play_data.nb_game_in_file != 0:
-            return
+        if self.idx % self.config.play_data.nb_game_in_file == 0:
+            self.flush_buffer()
 
+    def flush_buffer(self):
         rc = self.config.resource
         game_id = datetime.now().strftime("%Y%m%d-%H%M%S.%f")
         path = os.path.join(rc.play_data_dir, rc.play_data_filename_tmpl % game_id)
@@ -159,12 +153,12 @@ class SupervisedLearningWorker:
         write_game_data_to_file(path, self.buffer)
         self.buffer = []
 
-    def remove_play_data(self):
-        files = get_game_data_filenames(self.config.resource)
-        if len(files) < self.config.play_data.max_file_num:
-            return
-        for i in range(len(files) - self.config.play_data.max_file_num):
-            os.remove(files[i])
+    # def remove_play_data(self):
+    #     files = get_game_data_filenames(self.config.resource)
+    #     if len(files) < self.config.play_data.max_file_num:
+    #         return
+    #     for i in range(len(files) - self.config.play_data.max_file_num):
+    #         os.remove(files[i])
 
     def finish_game(self):
         if self.env.winner == Winner.black:
@@ -176,11 +170,3 @@ class SupervisedLearningWorker:
 
         self.black.finish_game(black_win)
         self.white.finish_game(-black_win)
-
-    def load_model(self):
-        from chess_zero.agent.model_chess import ChessModel
-        model = ChessModel(self.config)
-        if self.config.opts.new or not load_best_model_weight(model):
-            model.build()
-            save_as_best_model(model)
-        return model
