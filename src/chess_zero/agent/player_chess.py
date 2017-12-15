@@ -3,8 +3,6 @@ from asyncio.queues import Queue
 from collections import defaultdict, namedtuple
 from logging import getLogger
 import asyncio
-import uvloop
-asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
 from profilehooks import profile
 
@@ -16,6 +14,11 @@ import chess
 from chess_zero.agent.api_chess import ChessModelAPI
 from chess_zero.config import Config
 from chess_zero.env.chess_env import ChessEnv, Winner
+
+import platform
+if platform.system() != "Windows":
+    import uvloop
+    asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
 CounterKey = namedtuple("CounterKey", "board next_player")
 QueueItem = namedtuple("QueueItem", "state future")
