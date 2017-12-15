@@ -29,7 +29,7 @@ NodeType = enum.Enum("NodeType","internal expanding leaf") #MCTS node types
 logger = getLogger(__name__)
 
 class ChessPlayer:
-    def __init__(self, config: Config, model, play_config=None):
+    def __init__(self, config: Config, model=None, play_config=None):
 
         self.config = config
         self.model = model
@@ -63,14 +63,16 @@ class ChessPlayer:
         env = ChessEnv().update(board)
 
         policy = np.zeros(self.labels_n)
-        k = 0
-        for mov in self.config.labels:
-            if mov == action:
-                policy[k] = 1.0
-                break
-            k += 1
+        k = self.move_lookup[chess.Move.from_uci(action)] 
+        policy[k]=1.0
+        # for mov in self.config.labels:
+        #     if mov == action:
+        #         policy[k] = 1.0
+        #         break
+        #     k += 1
+        #assert self.move_lookup[chess.Move.from_uci(action)] == k
 
-        self.moves.append([env.observation, list(policy)])
+        self.moves.append([env.observation, list(policy)]) #list(policy)?
         return action
 
     def action(self, env, can_stop = True):
