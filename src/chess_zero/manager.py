@@ -1,13 +1,13 @@
 import argparse
 
-from logging import getLogger
+from logging import getLogger,disable
 
 from .lib.logger import setup_logger
 from .config import Config
 
 logger = getLogger(__name__)
 
-CMD_LIST = ['self', 'opt', 'eval', 'play_gui', 'sl']
+CMD_LIST = ['self', 'opt', 'eval', 'play_gui', 'sl', 'uci']
 
 
 def create_parser():
@@ -32,6 +32,9 @@ def start():
     args = parser.parse_args()
     config_type = args.type
 
+
+    if args.cmd == 'uci':
+        disable(999999) # plz don't interfere with uci
     config = Config(config_type=config_type)
     setup(config, args)
 
@@ -52,3 +55,6 @@ def start():
     elif args.cmd == 'play_gui':
         from .play_game import gui
         return gui.start(config)
+    elif args.cmd == 'uci':
+        from .play_game import uci
+        return uci.start(config)
