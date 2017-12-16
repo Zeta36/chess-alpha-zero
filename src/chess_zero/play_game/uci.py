@@ -10,6 +10,7 @@ logger = getLogger(__name__)
 def start(config: Config):
 
     PlayWithHumanConfig().update_play_config(config.play)
+    config.play.thinking_loop = 1
 
     chess_model = None
     env = ChessEnv().reset()
