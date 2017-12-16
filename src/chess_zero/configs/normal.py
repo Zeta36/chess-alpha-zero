@@ -13,6 +13,7 @@ class EvaluateConfig:
 
 class PlayDataConfig:
     def __init__(self):
+        self.sl_nb_game_in_file = 100
         self.nb_game_in_file = 100
         self.max_file_num = 200  # 5000
 
