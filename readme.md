@@ -94,6 +94,13 @@ For evaluation, you can play chess with the BestModel.
 
 * `play_gui` is Play Game vs BestModel using ASCII character encoding.
 
+### GUI
+* `uci` launches the Universal Chess Interface, for use in a GUI.
+
+To set up ChessZero with a GUI, point it to `C0uci.bat` (or rename to .sh).
+For example, this is screenshot of the random model using Arena's self-play feature:
+![capture](https://user-images.githubusercontent.com/4205182/34057277-e9c99118-e19b-11e7-91ee-dd717f7efe9d.PNG)
+
 Data
 -----
 
