@@ -120,7 +120,7 @@ class ChessPlayer:
 
         # this is for play_gui, not necessary when training.
         self.thinking_history[env.observation] = HistoryItem(action, policy, list(self.var_q[state]), list(self.var_n[state]))
-        self.deboog(env)
+        #self.deboog(env)
         if can_stop and self.play_config.resign_threshold is not None and \
                         np.max(self.var_q[state] - (self.var_n[state] == 0) * 10) <= self.play_config.resign_threshold \
                         and self.play_config.min_resign_turn < env.turn:

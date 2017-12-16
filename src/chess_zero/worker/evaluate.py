@@ -50,9 +50,10 @@ class EvaluateWorker:
             ng_score, env = self.play_game(self.best_model, ng_model, current_white)
             results.append(ng_score)
             winning_rate = sum(results) / len(results)
-            logger.debug(f"game {game_idx}: ng_score={ng_score:.1f} "
+            logger.debug(f"game {game_idx}: ng_score={ng_score:.1f} ng is {"black" if current_white else "white"} "
                          f"{'by resign ' if env.resigned else '          '}"
-                         f"winning rate {winning_rate*100:.1f}%")
+                         f"winning rate {winning_rate*100:.1f}% \n"
+                         f"{env.board.fen()}")
             if results.count(0) >= self.config.eval.game_num * (1-self.config.eval.replace_rate):
                 logger.debug(f"lose count reach {results.count(0)} so give up challenge")
                 break
@@ -67,12 +68,12 @@ class EvaluateWorker:
     def play_game(self, best_model, ng_model, current_white):
         env = ChessEnv().reset()
 
-        best_player = ChessPlayer(self.config, best_model, play_config=self.config.eval.play_config)
+        current_player = ChessPlayer(self.config, best_model, play_config=self.config.eval.play_config)
         ng_player = ChessPlayer(self.config, ng_model, play_config=self.config.eval.play_config)
-        if not current_white:
-            black, white = best_player, ng_player
+        if current_white:
+            white, black = current_player, ng_player
         else:
-            black, white = ng_player, best_player
+            white, black = ng_player, current_player
 
         while not env.done:
             if env.turn >= self.config.eval.max_game_length:
