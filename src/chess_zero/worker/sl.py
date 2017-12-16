@@ -9,6 +9,8 @@ from chess_zero.config import Config
 from chess_zero.env.chess_env import ChessEnv, Winner
 from chess_zero.lib import tf_util
 from chess_zero.lib.data_helper import get_game_data_filenames, write_game_data_to_file, find_pgn_files
+from threading import Thread
+
 import random
 
 logger = getLogger(__name__)
@@ -30,7 +32,6 @@ class SupervisedLearningWorker:
         :param chess_zero.agent.model_chess.ChessModel|None model:
         """
         self.config = config
-        #self.config.play_data.nb_game_in_file = 100
         self.env = env     # type: ChessEnv
         self.black = None  # type: ChessPlayer
         self.white = None  # type: ChessPlayer
@@ -46,7 +47,7 @@ class SupervisedLearningWorker:
             logger.debug(f"game {self.idx:4} time={(end_time - start_time):.3f}s "
                          f"turn={int(env.turn/2)} {env.winner}"
                          f"{' by resign ' if env.resigned else '           '}"
-                         f"{env.observation.split(' ')[0]:}")
+                         f"{env.observation.split(' ')[0]}")
             start_time=end_time
             self.idx += 1
 
@@ -139,10 +140,16 @@ class SupervisedLearningWorker:
         # return self.env
 
     def save_play_data(self):
-        data = self.black.moves + self.white.moves
+
+        data = []
+
+        for i in range(len(self.white.moves)):
+            data.append(self.white.moves[i])
+            if i < len(self.black.moves):
+                data.append(self.black.moves[i])
         self.buffer += data
 
-        if self.idx % self.config.play_data.nb_game_in_file == 0:
+        if self.idx % self.config.play_data.sl_nb_game_in_file == 0:
             self.flush_buffer()
 
     def flush_buffer(self):
@@ -150,7 +157,9 @@ class SupervisedLearningWorker:
         game_id = datetime.now().strftime("%Y%m%d-%H%M%S.%f")
         path = os.path.join(rc.play_data_dir, rc.play_data_filename_tmpl % game_id)
         logger.info(f"save play data to {path}")
-        write_game_data_to_file(path, self.buffer)
+        #print(self.buffer)
+        thread = Thread(target = write_game_data_to_file, args=(path,(self.buffer)))
+        thread.start()
         self.buffer = []
 
     # def remove_play_data(self):

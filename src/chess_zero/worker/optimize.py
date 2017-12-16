@@ -72,8 +72,8 @@ class OptimizeWorker:
         return steps
 
     def compile_model(self):
-        self.optimizer = Adam(lr=1e-1)#SGD(lr=1e-2, momentum=0.9) # Adam better?
-        losses = [loss_function_for_policy, loss_function_for_value] # avoid overfit for supervised 
+        self.optimizer = SGD(lr=1e-2, momentum=0.9) # Adam better?
+        losses = ['categorical_crossentropy', 'mean_squared_error'] # avoid overfit for supervised 
         self.model.model.compile(optimizer=self.optimizer, loss=losses, loss_weights=self.config.trainer.loss_weights)
 
     # def update_learning_rate(self, total_steps):
@@ -151,13 +151,13 @@ class OptimizeWorker:
             self.dataset = self.collect_all_loaded_data()
 
     def load_data_from_file(self, filename):
-        try:
-            logger.debug(f"loading data from {filename}")
-            data = read_game_data_from_file(filename)
-            self.loaded_data[filename] = self.convert_to_training_data(data)
-            self.loaded_filenames.add(filename)
-        except Exception as e:
-            logger.warning(str(e))
+        # try:
+        logger.debug(f"loading data from {filename}")
+        data = read_game_data_from_file(filename)
+        self.loaded_data[filename] = self.convert_to_training_data(data)
+        self.loaded_filenames.add(filename)
+        # except Exception as e:
+        #     logger.warning(str(e))
 
     def unload_data_of_file(self, filename):
         logger.debug(f"removing data about {filename} from training set")
@@ -177,16 +177,20 @@ class OptimizeWorker:
         z_list = []
         env = ChessEnv().reset()
         for state_fen, policy, z in data:
-            # f1 = ChessEnv.replace_tags_board(state_fen)
-            # f2 = ChessEnv.maybe_flip_fen(ChessEnv.maybe_flip_fen(state_fen,True),True).split(' ')[0]
-            # assert f1 == f2
+            move_number = int(state_fen.split(' ')[5])
+            # f2 = ChessEnv.maybe_flip_fen(ChessEnv.maybe_flip_fen(state_fen,True),True)
+            # assert state_fen == f2
             next_move = env.deltamove(state_fen)
             if next_move == None: # new game!
+                assert state_fen == chess.STARTING_FEN
                 env.reset()
             else:
                 env.step(next_move)
 
             state_planes = env.canonical_input_planes()
+
+            env.check_current_planes(state_planes)
+
             state_list.append(state_planes)
             side_to_move = state_fen.split(" ")[1]
             if side_to_move == 'b':

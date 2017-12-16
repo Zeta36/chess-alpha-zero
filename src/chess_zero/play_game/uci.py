@@ -32,12 +32,17 @@ def start(config: Config):
             if words[0]=="startpos":
                 env.reset()
             else:
-                env.update(words[0])
+                fen = words[0]
+                for _ in range(5):
+                    words=words[1].split(' ',1)
+                    fen += " "+words[0]
+                env.update(fen)
+                print(ChessEnv.maybe_flip_fen(fen,True))
             if(len(words)>1):
                 words=words[1].split(" ",1)
                 if words[0]=="moves":
                     for w in words[1].split(" "):
-                        env.step(w)
+                        env.step(w,False)
         elif words[0]=="go":
             action = chess_model.move_by_ai(env)
             print(f"bestmove {action}")

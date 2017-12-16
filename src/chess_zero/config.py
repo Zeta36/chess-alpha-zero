@@ -123,7 +123,7 @@ class ResourceConfig:
 
 class PlayWithHumanConfig:
     def __init__(self):
-        self.simulation_num_per_move = 400
+        self.simulation_num_per_move = 800
         self.thinking_loop = 1
         self.logging_thinking = True
         self.c_puct = 3

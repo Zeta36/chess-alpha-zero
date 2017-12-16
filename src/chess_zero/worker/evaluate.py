@@ -47,10 +47,11 @@ class EvaluateWorker:
         for game_idx in range(self.config.eval.game_num):
             # ng_score := if ng_model win -> 1, lose -> 0, draw -> 0.5
             current_white = (game_idx % 2 == 0)
-            ng_score = self.play_game(self.best_model, ng_model, current_white)
+            ng_score, env = self.play_game(self.best_model, ng_model, current_white)
             results.append(ng_score)
             winning_rate = sum(results) / len(results)
             logger.debug(f"game {game_idx}: ng_score={ng_score:.1f} "
+                         f"{'by resign ' if env.resigned else '          '}"
                          f"winning rate {winning_rate*100:.1f}%")
             if results.count(0) >= self.config.eval.game_num * (1-self.config.eval.replace_rate):
                 logger.debug(f"lose count reach {results.count(0)} so give up challenge")
@@ -74,6 +75,9 @@ class EvaluateWorker:
             black, white = ng_player, best_player
 
         while not env.done:
+            if env.turn >= self.config.eval.max_game_length:
+                env.adjudicate()
+                break
             if env.board.turn == chess.BLACK:
                 action = black.action(env)
             else:
@@ -93,7 +97,7 @@ class EvaluateWorker:
                 ng_score = 0
         else:
             ng_score = 0.5
-        return ng_score
+        return ng_score, env
 
     def load_best_model(self):
         model = ChessModel(self.config)

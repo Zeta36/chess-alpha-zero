@@ -10,6 +10,7 @@ from chess_zero.lib import tf_util
 from chess_zero.lib.data_helper import get_game_data_filenames, write_game_data_to_file
 from chess_zero.lib.model_helper import load_best_model_weight, save_as_best_model, \
     reload_best_model_weight_if_changed
+import numpy as np
 
 logger = getLogger(__name__)
 
@@ -39,23 +40,28 @@ class SelfPlayWorker:
             self.model = self.load_model()
 
         self.buffer = []
-        idx = 1
+        self.idx = 1
 
         while True:
             start_time = time()
-            env = self.start_game(idx)
+            env = self.start_game(self.idx)
             end_time = time()
-            logger.debug(f"game {idx} time={end_time - start_time} sec, "
-                         f"turn={int(env.turn/2)}:{env.observation} - Winner:{env.winner} - by resignation?:{env.resigned}")
-            if (idx % self.config.play_data.nb_game_in_file) == 0:
+            logger.debug(f"game {self.idx} time={end_time - start_time:.3f}s "
+                         f"turn={int(env.turn/2)} {env.winner} "
+                         f"{'by resign ' if env.resigned else '          '}"
+                         f"{env.observation.split(' ')[0]}")
+            if (self.idx % self.config.play_data.nb_game_in_file) == 0:
                 reload_best_model_weight_if_changed(self.model)
-            idx += 1
+            self.idx += 1
 
     def start_game(self, idx):
         self.env.reset()
         self.black = ChessPlayer(self.config, self.model)
         self.white = ChessPlayer(self.config, self.model)
         while not self.env.done:
+            if self.env.turn >= self.config.eval.max_game_length:
+                self.env.adjudicate()
+                break
             if self.env.board.turn == chess.BLACK:
                 action = self.black.action(self.env)
             else:
@@ -68,7 +74,14 @@ class SelfPlayWorker:
         return self.env
 
     def save_play_data(self, write=True):
-        data = self.black.moves + self.white.moves
+
+        data = []
+
+        for i in range(len(self.white.moves)):
+            data.append(self.white.moves[i])
+            if i < len(self.black.moves):
+                data.append(self.black.moves[i])
+
         self.buffer += data
 
         if not write:
