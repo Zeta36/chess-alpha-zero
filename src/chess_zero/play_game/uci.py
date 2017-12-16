@@ -10,8 +10,6 @@ logger = getLogger(__name__)
 def start(config: Config):
 
     PlayWithHumanConfig().update_play_config(config.play)
-    config.play.thinking_loop=1
-    
 
     chess_model = None
     env = ChessEnv().reset()
@@ -34,12 +32,16 @@ def start(config: Config):
             if words[0]=="startpos":
                 env.reset()
             else:
-                env.update(words[0])
+                fen = words[0]
+                for _ in range(5):
+                    words=words[1].split(' ',1)
+                    fen += " "+words[0]
+                env.update(fen)
             if(len(words)>1):
                 words=words[1].split(" ",1)
                 if words[0]=="moves":
                     for w in words[1].split(" "):
-                        env.step(w)
+                        env.step(w,False)
         elif words[0]=="go":
             action = chess_model.move_by_ai(env)
             print(f"bestmove {action}")
