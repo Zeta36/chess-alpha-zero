@@ -31,6 +31,8 @@ class PlayWithHuman:
         return model
 
     def move_by_ai(self, env):
+        if self.ai is None:
+            self.ai = ChessPlayer(self.config, self.model)
         action = self.ai.action(env.observation)
 
         self.last_history = self.ai.ask_thought_about(env.observation)
