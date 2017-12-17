@@ -50,7 +50,7 @@ class EvaluateWorker:
             ng_score, env = self.play_game(self.best_model, ng_model, current_white)
             results.append(ng_score)
             winning_rate = sum(results) / len(results)
-            logger.debug(f"game {game_idx}: ng_score={ng_score:.1f} ng is {"black" if current_white else "white"} "
+            logger.debug(f"game {game_idx}: ng_score={ng_score:.1f} ng is {'black' if current_white else 'white'} "
                          f"{'by resign ' if env.resigned else '          '}"
                          f"winning rate {winning_rate*100:.1f}% \n"
                          f"{env.board.fen()}")

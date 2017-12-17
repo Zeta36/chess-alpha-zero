@@ -72,7 +72,7 @@ class OptimizeWorker:
         return steps
 
     def compile_model(self):
-        self.optimizer = SGD(lr=1e-2, momentum=0.9) # Adam better?
+        self.optimizer = SGD(lr=2e-1, momentum=0.9) # Adam better?
         losses = ['categorical_crossentropy', 'mean_squared_error'] # avoid overfit for supervised 
         self.model.model.compile(optimizer=self.optimizer, loss=losses, loss_weights=self.config.trainer.loss_weights)
 

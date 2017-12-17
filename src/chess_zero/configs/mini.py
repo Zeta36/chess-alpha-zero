@@ -1,6 +1,6 @@
 class EvaluateConfig:
     def __init__(self):
-        self.game_num = 40
+        self.game_num = 50
         self.replace_rate = 0.55
         self.play_config = PlayConfig()
         self.play_config.simulation_num_per_move = 50
@@ -21,14 +21,14 @@ class PlayDataConfig:
 
 class PlayConfig:
     def __init__(self):
-        self.simulation_num_per_move = 50
+        self.simulation_num_per_move = 160
         self.thinking_loop = 1
         self.logging_thinking = False
         self.c_puct = 1.5
         self.noise_eps = 0.25
         self.dirichlet_alpha = 0.3
         self.change_tau_turn = 10
-        self.virtual_loss = 0.1
+        self.virtual_loss = 0.5
         self.prediction_queue_size = 16
         self.parallel_search_num = 16
         self.prediction_worker_sleep_sec = 0.00001
