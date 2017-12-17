@@ -16,7 +16,7 @@ logger = getLogger(__name__)
 
 
 def start(config: Config):
-    tf_util.set_session_config(config.vram_frac)
+    tf_util.set_session_config(config.play.vram_frac)
     return SelfPlayWorker(config, env=ChessEnv()).start()
 
 
@@ -46,7 +46,7 @@ class SelfPlayWorker:
             start_time = time()
             env = self.start_game(self.idx)
             end_time = time()
-            logger.debug(f"game {self.idx:3} time={end_time - start_time:.1f}s "
+            logger.debug(f"game {self.idx:3} time={end_time - start_time:2.0f}s "
                          f"halfmoves={env.turn:2} {env.winner:12} "
                          f"{'by resign ' if env.resigned else '          '}"
                          f"{env.observation.rsplit(' ',4)[0]}")

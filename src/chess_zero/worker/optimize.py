@@ -21,7 +21,7 @@ logger = getLogger(__name__)
 
 
 def start(config: Config):
-    tf_util.set_session_config(config.vram_frac)
+    tf_util.set_session_config(config.trainer.vram_frac)
     return OptimizeWorker(config).start()
 
 
@@ -199,4 +199,4 @@ class OptimizeWorker:
             policy_list.append(policy)
             value_list.append(value)
 
-        return np.array(state_list), np.array(policy_list), np.array(z_list)
+        return np.array(state_list), np.array(policy_list), np.array(value_list)
