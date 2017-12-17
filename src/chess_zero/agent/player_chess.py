@@ -20,11 +20,11 @@ HistoryItem = namedtuple("HistoryItem", "action policy values visit")
 
 logger = getLogger(__name__)
 
+# these are from AGZ nature paper
 class VisitStats:
     def __init__(self):
         self.a = defaultdict(ActionStats)
         self.sum_n = 0
-        self.tot_p = 0
         self.selected_yet = False
 
 class ActionStats:
@@ -48,7 +48,6 @@ class ChessPlayer:
         self.prediction_queue_lock = Lock()
         self.search_threads = ThreadPoolExecutor(max_workers=self.play_config.parallel_search_num)
         self.is_thinking = False
-        self.legal_binary = defaultdict()
 
         self.moves = []
 
@@ -57,14 +56,7 @@ class ChessPlayer:
 
     # we are leaking memory + losing MCTS nodes...!! (without this)
     def reset(self):
-        # these are from AGZ nature paper
         self.tree = defaultdict(VisitStats)
-        # self.var_n = defaultdict(lambda: np.zeros((self.labels_n,))) # visit count
-        # self.var_w = defaultdict(lambda: np.zeros((self.labels_n,))) # total action value
-        # self.var_q = defaultdict(lambda: np.zeros((self.labels_n,))) # mean action value
-        # self.var_p = defaultdict(lambda: np.zeros((self.labels_n,))) # prior probability
-
-        #self.visited = set()
         self.node_lock = defaultdict(Lock)
         self.prediction_queue = []
 
@@ -97,9 +89,6 @@ class ChessPlayer:
                 f"q: {s[2]:7.3f} "
                 f"p: {s[3]:7.5f}")
 
-    # def action_with_policy(self, env, can_stop = True):
-    #     return self.action(env,can_stop), self.calc_policy(env)
-
     def action(self, env, can_stop = True) -> str:
         self.reset()
         
@@ -114,18 +103,9 @@ class ChessPlayer:
             self.search_moves(env)
             policy = self.calc_policy(env)
             action = int(np.random.choice(range(self.labels_n), p = policy))
-            #action_by_value = int(np.argmax(self.var_q[state] + (self.var_n[state] > 0)*100))
-            # if env.turn < self.play_config.change_tau_turn:
-            #     break
-            # if tl > 0 and self.play_config.logging_thinking:
-            #     uci.info(depth = tl+1,move=self.config.labels[action],score=self.var_q[state][action])
-                # logger.debug(f"continue thinking: policy move=({action % 8}, {action // 8}), "
-                #              f"value move=({action_by_value % 8}, {action_by_value // 8})")
         self.is_thinking = False
         # prediction_worker.join()
 
-        # this is for play_gui, not necessary when training.
-        # self.thinking_history[env.observation] = HistoryItem(action, policy, list(self.var_q[state]), list(self.var_n[state]))
         #self.deboog(env)
         if can_stop and self.play_config.resign_threshold is not None and \
                         np.max([a_s.q for a, a_s in self.tree[state].a.items()]) <= self.play_config.resign_threshold \
@@ -138,7 +118,7 @@ class ChessPlayer:
     def ask_thought_about(self, board) -> HistoryItem:
         return self.thinking_history.get(board)
 
-    #@profile
+    @profile
     def search_moves(self, env):
 
         # if ChessPlayer.dot == False:
@@ -174,8 +154,6 @@ class ChessPlayer:
 
         with my_lock:
             if state not in self.tree:
-                # self.visited.add(state)
-                #print(state)
                 leaf_v = self.expand_and_evaluate(env = env) 
                 return leaf_v # I'm returning everything from the POV of side to move
 
@@ -285,58 +263,37 @@ class ChessPlayer:
         # this method is called with state locked
         state = self.state_key(env)
 
-        """Bottlenecks are these two lines"""
-        # if state not in self.legal_binary:
-        #     legal_moves = [self.move_lookup[mov] for mov in env.board.legal_moves]
-        #     legal_labels = np.zeros(len(self.config.labels))
-        #     #logger.debug(legal_moves)
-        #     legal_labels[legal_moves] = 1
-        #     self.legal_binary[state] = legal_labels
-        # else:
-        #     legal_labels = self.legal_binary[state]
-
         my_visitstats = self.tree[state]
 
         if not my_visitstats.selected_yet: #initialize p
             my_visitstats.selected_yet = True
-            legal_moves = env.board.legal_moves # oh wait i dont even need to memoize legal moves
-            for mov in legal_moves:
+            tot_p = 0
+            for mov in env.board.legal_moves:
                 mov_p = my_visitstats.p[self.move_lookup[mov]]
                 my_visitstats.a[mov].p = mov_p
-                my_visitstats.tot_p += mov_p
+                tot_p += mov_p
+            for action, a_s in my_visitstats.a.items():
+                a_s.p /= tot_p
 
         # noinspection PyUnresolvedReferences
         xx_ = np.sqrt(my_visitstats.sum_n)  # SQRT of sum(N(s, b); for all b)
-        #assert xx_ >= 1.0
-        #xx_ = max(xx_, 1)  # avoid u_=0 if N is all 0
-        p_ = my_visitstats.p
 
         e = self.play_config.noise_eps
         c_puct = self.play_config.c_puct
-
-        if is_root_node:  # Is it correct?? -> (1-e)p + e*Dir(0.03)
-            p_ = (1 - e) * p_ + \
-                 e * np.random.dirichlet([self.play_config.dirichlet_alpha] * self.labels_n)
-
-        # re-normalize in legal moves
-        # p_ = p_ * legal_labels
-        # if np.sum(p_) > 0:
-        #     p_ = p_ / np.sum(p_)
+        dir_alpha = self.play_config.dirichlet_alpha
 
         best_s = -999
         best_a = None
 
         for action, a_s in my_visitstats.a.items():
-            b = a_s.q + c_puct * (a_s.p/my_visitstats.tot_p) * xx_ / (1 + a_s.n)
+            p_ = a_s.p
+            if is_root_node:
+                p_ = (1-e) * p_ + e * np.random.dirichlet([dir_alpha])
+            b = a_s.q + c_puct * p_ * xx_ / (1 + a_s.n)
             if b > best_s:
                 best_s = b
                 best_a = action
 
-        # u_ = self.play_config.c_puct * p_ * xx_ / (1 + self.var_n[state]) # element-wise division...
-
-        # v_ = (self.var_q[state] + u_ + 1000) * legal_labels
-        # noinspection PyTypeChecker
-        # action_t = int(np.argmax(v_))
         return best_a
 
     @staticmethod
