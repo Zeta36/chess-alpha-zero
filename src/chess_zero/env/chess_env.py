@@ -34,11 +34,7 @@ class ChessEnv:
         self.resigned = False
         return self
 
-    def step(self, action, check_over = True):
-        """
-        :param int|None action, None is resign
-        :return:
-        """
+    def step(self, action, check_over=True):
         if check_over and action is None:
             self._resigned()
             return self.board, {}
@@ -47,7 +43,7 @@ class ChessEnv:
 
         self.turn += 1
 
-        if check_over and self.board.is_game_over() or self.board.can_claim_threefold_repetition():
+        if check_over and (self.board.is_game_over() or self.board.can_claim_threefold_repetition()):
             self._game_over()
 
         return self.board, {}
