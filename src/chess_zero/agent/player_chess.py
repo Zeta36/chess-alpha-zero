@@ -133,10 +133,10 @@ class ChessPlayer:
     #@profile
     def search_moves(self, env):
 
-        if ChessPlayer.dot == False:
-            import stacktracer
-            stacktracer.trace_start("trace.html")
-            ChessPlayer.dot = True
+        # if ChessPlayer.dot == False:
+        #     import stacktracer
+        #     stacktracer.trace_start("trace.html")
+        #     ChessPlayer.dot = True
 
         futures = []
         with ThreadPoolExecutor(max_workers=self.play_config.parallel_search_num) as executor:
