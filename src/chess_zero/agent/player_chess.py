@@ -23,29 +23,8 @@ if platform.system() != "Windows":
 QueueItem = namedtuple("QueueItem", "state v future")
 HistoryItem = namedtuple("HistoryItem", "action policy values visit")
 
-#NodeType = enum.Enum("NodeType","internal expanding leaf") #MCTS node types
-
 logger = getLogger(__name__)
 
-# class PredictionExecutor(Executor):
-#     def __init__(self, size):
-#         self.q = []
-#         self.prediction_queue_size = size
-
-#     def batchpredict(self,data):
-#         policy_ary, value_ary = self.api.predict(data)
-#         # policy_ary = [np.ones(shape=(self.labels_n)) / self.labels_n for _ in item_list]
-#         # value_ary = [x.v for x in item_list]
-#         for p, v, item in zip(policy_ary, value_ary, item_list):
-#             item.future.set_result((p, v))
-
-
-#     def submit(self, fn, *args, **kwargs):
-#         fut = Future()
-#         self.q.put(QueueItem(kwargs['state'],kwargs[v],fut))
-#         if self.q.qsize() >= self.prediction_queue_size:
-#             batchpredict()
-#         return fut
 
 class ChessPlayer:
     dot = False
@@ -59,12 +38,11 @@ class ChessPlayer:
         self.move_lookup = {k:v for k,v in zip((chess.Move.from_uci(move) for move in self.config.labels),range(len(self.config.labels)))}
         self.labels_n = config.n_labels
         self.labels = config.labels
-        self.prediction_queue = []
         self.prediction_queue_lock = Lock()
-        self.pred_worker = ThreadPoolExecutor(max_workers=1)
+        self.search_threads = ThreadPoolExecutor(max_workers=self.play_config.parallel_search_num)
+        self.is_thinking = False
 
         self.moves = []
-        self.running_simulation_num = 0
 
         self.thinking_history = {}  # for fun
         self.reset()
@@ -76,9 +54,11 @@ class ChessPlayer:
         self.var_w = defaultdict(lambda: np.zeros((self.labels_n,))) # total action value
         self.var_q = defaultdict(lambda: np.zeros((self.labels_n,))) # mean action value
         self.var_p = defaultdict(lambda: np.zeros((self.labels_n,))) # prior probability
+
         self.legal_binary = defaultdict()
         self.visited = set()
         self.node_lock = defaultdict(Lock)
+        self.prediction_queue = []
 
     def sl_action(self, board, action):
 
@@ -117,26 +97,28 @@ class ChessPlayer:
         
         state = self.state_key(env)
 
+        self.is_thinking = True
+        prediction_worker = Thread(target=self.predict_batch_worker,name="prediction_worker")
+        prediction_worker.daemon = True
+        prediction_worker.start()
+
         for tl in range(self.play_config.thinking_loop):
             self.search_moves(env)
             policy = self.calc_policy(env)
-            print(np.sum(policy))
-            #print(policy)
             action = int(np.random.choice(range(self.labels_n), p = policy))
-            #print(np.sum(list(self.var_n[state])))
             action_by_value = int(np.argmax(self.var_q[state] + (self.var_n[state] > 0)*100))
-            #print(len(self.node_type))
-            #assert len(self.node_type) == (tl+1)*self.play_config.simulation_num_per_move
             # if env.turn < self.play_config.change_tau_turn:
             #     break
             # if tl > 0 and self.play_config.logging_thinking:
             #     uci.info(depth = tl+1,move=self.config.labels[action],score=self.var_q[state][action])
                 # logger.debug(f"continue thinking: policy move=({action % 8}, {action // 8}), "
                 #              f"value move=({action_by_value % 8}, {action_by_value // 8})")
+        self.is_thinking = False
+        # prediction_worker.join()
 
         # this is for play_gui, not necessary when training.
         self.thinking_history[env.observation] = HistoryItem(action, policy, list(self.var_q[state]), list(self.var_n[state]))
-        self.deboog(env)
+        #self.deboog(env)
         if can_stop and self.play_config.resign_threshold is not None and \
                         np.max(self.var_q[state] - (self.var_n[state] == 0) * 10) <= self.play_config.resign_threshold \
                         and self.play_config.min_resign_turn < env.turn:
@@ -150,41 +132,17 @@ class ChessPlayer:
 
     #@profile
     def search_moves(self, env):
-        start = time.time()
-        self.running_simulation_num = 0
 
         if ChessPlayer.dot == False:
             import stacktracer
             stacktracer.trace_start("trace.html")
             ChessPlayer.dot = True
 
-        pred_worker = Thread(target=self.predict_batch_worker,name="predworker")
-        pred_worker.start()
-
         futures = []
-
         with ThreadPoolExecutor(max_workers=self.play_config.parallel_search_num) as executor:
-            for _ in range(self.play_config.simulation_num_per_move + 1): # + 1 for origin (it's a leaf!)
-                #time.sleep(0.01)
+            for _ in range(self.play_config.simulation_num_per_move):
                 futures.append(executor.submit(self.search_my_move,env=env.copy(),is_root_node=True))
-                print(_)
-
-        print([fut.result() for fut in futures])
-        # coroutine_list = [ self.start_search_my_move(env) \
-        #     for _ in range(self.play_config.simulation_num_per_move) ]
-
-        # coroutine_list.append(self.prediction_worker())
-        # self.loop.run_until_complete(asyncio.gather(*coroutine_list))
-        #logger.debug(f"Search time per move: {time.time()-start}")
-        # uncomment to see profile result per move
-        # raise
-
-    # def start_search_my_move(self, env) -> float:
-    #     self.running_simulation_num += 1
-    #     my_env = env.copy()  # use this option to preserve history
-    #     leaf_v = self.search_my_move(my_env, is_root_node=True)
-    #     self.running_simulation_num -= 1
-    #     return leaf_v
+        [f.result() for f in futures]  
 
     def search_my_move(self, env: ChessEnv, is_root_node=False) -> float:
         """
@@ -209,13 +167,10 @@ class ChessPlayer:
         with my_lock:
             if state not in self.visited:
                 self.visited.add(state)
-                print(state)
-                leaf_v = self.expand_and_evaluate(env = env) # why copy??????????
+                #print(state)
+                leaf_v = self.expand_and_evaluate(env = env) 
                 return leaf_v # I'm returning everything from the POV of side to move
 
-
-        # while self.node_type[state] == node_expanding: # state is leaf being expanded on another thread
-        #     time.sleep(self.play_config.wait_for_expanding_sleep_sec)
 
         assert state in self.visited
         #print (2)
@@ -251,13 +206,10 @@ class ChessPlayer:
         :param ChessEnv env:
         :return: leaf_v
         """
-        # leaf_p = np.ones(shape=(self.labels_n)) / self.labels_n
-        # leaf_v = env.testeval()
 
         state_planes = env.canonical_input_planes()
 
-        leaf_p, leaf_v = self.predict(statex=state_planes,testv=env.testeval())  # type: Future
-
+        leaf_p, leaf_v = self.predict(statex=state_planes,testv=env.testeval())
         # these are canonical policy and value (i.e. side to move is "white")
 
         if env.board.turn == chess.BLACK:
@@ -267,66 +219,30 @@ class ChessPlayer:
 
         state = self.state_key(env)
 
-        print(">"+state)
-
         self.var_p[state] = leaf_p  # P is policy for next_player (black or white)
 
         return float(leaf_v)
 
-    # def prediction_worker(self):
-    #     """For better performance, queueing prediction requests and predict together in this worker.
-
-    #     speed up about 45sec -> 15sec for example.
-    #     :return:
-    #     """
-    #     q = self.prediction_queue
-    #     margin = 10  # avoid finishing before other searches starting.
-    #     while self.running_simulation_num > 0 or margin > 0:
-    #         if q.empty():
-    #             if margin > 0:
-    #                 margin -= 1
-    #             time.sleep(self.config.play.prediction_worker_sleep_sec)
-    #             continue
-    #         item_list = [q.get_nowait() for _ in range(q.qsize())]  # type: list[QueueItem]
-    #         #logger.debug(f"predicting {len(item_list)} items")
-    #         data = np.array([x.state for x in item_list])
-    #         policy_ary, value_ary = self.api.predict(data)
-    #         # policy_ary = [np.ones(shape=(self.labels_n)) / self.labels_n for _ in item_list]
-    #         # value_ary = [x.v for x in item_list]
-    #         for p, v, item in zip(policy_ary, value_ary, item_list):
-    #             item.future.set_result((p, v))
-
     def predict_batch_worker(self):
-        q = self.prediction_queue
-        #total = self.play_config.simulation_num_per_move
-        #batch_size = self.play_config.prediction_queue_size
-        origin = q.get()
-        origin.future.set_result(self.api.predict(origin.state))
-        while True:
-            with self.prediction_queue_lock:
-                item_list = self.prediction_queue
-                self.prediction_queue = []
+        while self.is_thinking:
+            if self.prediction_queue:
+                with self.prediction_queue_lock:
+                    item_list = self.prediction_queue
+                    self.prediction_queue = []
 
-            #logger.debug(f"predicting {len(item_list)} items")
-            data = np.array([x.state for x in item_list])
-            policy_ary, value_ary = self.api.predict(data)
-            # policy_ary = [np.ones(shape=(self.labels_n)) / self.labels_n for _ in item_list]
-            # value_ary = [x.v for x in item_list]
-            for item, p, v in zip(item_list, policy_ary, value_ary):
-                item.future.set_result((p, v))
+                #logger.debug(f"predicting {len(item_list)} items")
+                data = np.array([x.state for x in item_list])
+                policy_ary, value_ary = self.api.predict(data)
+                for item, p, v in zip(item_list, policy_ary, value_ary):
+                    item.future.set_result((p, v))
+            else:
+                time.sleep(self.play_config.prediction_worker_sleep_sec)
 
     def predict(self, statex, testv):
         future = Future()
         item = QueueItem(statex,testv, future)
         with self.prediction_queue_lock: # lists are atomic anyway though
             self.prediction_queue.append(item)
-        # with self.pred_worker as executor:
-        #     executor.submit(self.predict_batch)
-        # if self.prediction_queue.qsize() >= self.play_config.prediction_queue_size:
-        #     print(self.prediction_queue.qsize()+10000)
-        #     with self.pred_worker as executor:
-        #         executor.submit(self.predict_batch)
-        #print(self.prediction_queue.qsize())
         return future.result()
 
     def calc_policy(self, env):
