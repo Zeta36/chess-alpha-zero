@@ -3,7 +3,7 @@ from queue import Queue
 from collections import defaultdict, namedtuple
 from logging import getLogger
 import enum
-import threading
+from threading import Thread,Lock
 
 from profilehooks import profile
 
@@ -160,7 +160,7 @@ class ChessPlayer:
             stacktracer.trace_start("trace.html")
             ChessPlayer.dot = True
 
-        pred_worker = threading.Thread(target=self.predict_batch_worker,name="predworker")
+        pred_worker = Thread(target=self.predict_batch_worker,name="predworker")
         pred_worker.start()
 
         futures = []
@@ -206,19 +206,20 @@ class ChessPlayer:
 
         state = self.state_key(env)
 
-        with self.node_lock[state] as my_lock:
-            if state not in visited:
-                visited.add(state)
+        my_lock = self.node_lock[state]
+
+        with my_lock:
+            if state not in self.visited:
+                self.visited.add(state)
                 print(state)
                 leaf_v = self.expand_and_evaluate(env = env) # why copy??????????
-                my_lock.release()
                 return leaf_v # I'm returning everything from the POV of side to move
 
 
         # while self.node_type[state] == node_expanding: # state is leaf being expanded on another thread
         #     time.sleep(self.play_config.wait_for_expanding_sleep_sec)
 
-        assert state in visited
+        assert state in self.visited
         #print (2)
 
         # SELECT STEP
@@ -268,7 +269,7 @@ class ChessPlayer:
 
         state = self.state_key(env)
 
-        #print(">"+state)
+        print(">"+state)
 
         self.var_p[state] = leaf_p  # P is policy for next_player (black or white)
 

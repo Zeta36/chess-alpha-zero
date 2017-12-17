@@ -21,7 +21,7 @@ class PlayDataConfig:
 
 class PlayConfig:
     def __init__(self):
-        self.simulation_num_per_move = 160
+        self.simulation_num_per_move = 32
         self.thinking_loop = 1
         self.logging_thinking = False
         self.c_puct = 1.5
@@ -29,7 +29,7 @@ class PlayConfig:
         self.dirichlet_alpha = 0.3
         self.change_tau_turn = 10
         self.virtual_loss = 3
-        self.prediction_queue_size = 8
+        self.prediction_queue_size = 1
         self.parallel_search_num = 16
         # self.prediction_worker_sleep_sec = 0.00001
         self.wait_for_expanding_sleep_sec = 0.000001
