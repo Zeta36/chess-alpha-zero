@@ -47,7 +47,7 @@ class ChessEnv:
         return self
 
 
-    def step(self, action, check_over = True):
+    def step(self, action: str, check_over = True):
         """
         :param int|None action, None is resign
         :return:

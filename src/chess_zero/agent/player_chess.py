@@ -15,16 +15,23 @@ from chess_zero.config import Config
 from chess_zero.env.chess_env import ChessEnv, Winner
 #from chess_zero.play_game.uci import info
 
-import platform
-if platform.system() != "Windows":
-    import uvloop
-    asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
-
-QueueItem = namedtuple("QueueItem", "state v future")
+QueueItem = namedtuple("QueueItem", "state future")
 HistoryItem = namedtuple("HistoryItem", "action policy values visit")
 
 logger = getLogger(__name__)
 
+class VisitStats:
+    def __init__(self):
+        self.a = defaultdict(ActionStats)
+        self.sum_n = 0
+        self.tot_p = 0
+        self.selected_yet = False
+
+class ActionStats:
+    def __init__(self):
+        self.n = 0
+        self.w = 0
+        self.q = 0
 
 class ChessPlayer:
     dot = False
@@ -41,6 +48,7 @@ class ChessPlayer:
         self.prediction_queue_lock = Lock()
         self.search_threads = ThreadPoolExecutor(max_workers=self.play_config.parallel_search_num)
         self.is_thinking = False
+        self.legal_binary = defaultdict()
 
         self.moves = []
 
@@ -50,13 +58,13 @@ class ChessPlayer:
     # we are leaking memory + losing MCTS nodes...!! (without this)
     def reset(self):
         # these are from AGZ nature paper
-        self.var_n = defaultdict(lambda: np.zeros((self.labels_n,))) # visit count
-        self.var_w = defaultdict(lambda: np.zeros((self.labels_n,))) # total action value
-        self.var_q = defaultdict(lambda: np.zeros((self.labels_n,))) # mean action value
-        self.var_p = defaultdict(lambda: np.zeros((self.labels_n,))) # prior probability
+        self.tree = defaultdict(VisitStats)
+        # self.var_n = defaultdict(lambda: np.zeros((self.labels_n,))) # visit count
+        # self.var_w = defaultdict(lambda: np.zeros((self.labels_n,))) # total action value
+        # self.var_q = defaultdict(lambda: np.zeros((self.labels_n,))) # mean action value
+        # self.var_p = defaultdict(lambda: np.zeros((self.labels_n,))) # prior probability
 
-        self.legal_binary = defaultdict()
-        self.visited = set()
+        #self.visited = set()
         self.node_lock = defaultdict(Lock)
         self.prediction_queue = []
 
@@ -89,10 +97,10 @@ class ChessPlayer:
                 f"q: {s[2]:7.3f} "
                 f"p: {s[3]:7.5f}")
 
-    def action_with_policy(self, env, can_stop = True):
-        return self.action(env,can_stop), self.calc_policy(env)
+    # def action_with_policy(self, env, can_stop = True):
+    #     return self.action(env,can_stop), self.calc_policy(env)
 
-    def action(self, env, can_stop = True):
+    def action(self, env, can_stop = True) -> str:
         self.reset()
         
         state = self.state_key(env)
@@ -106,7 +114,7 @@ class ChessPlayer:
             self.search_moves(env)
             policy = self.calc_policy(env)
             action = int(np.random.choice(range(self.labels_n), p = policy))
-            action_by_value = int(np.argmax(self.var_q[state] + (self.var_n[state] > 0)*100))
+            #action_by_value = int(np.argmax(self.var_q[state] + (self.var_n[state] > 0)*100))
             # if env.turn < self.play_config.change_tau_turn:
             #     break
             # if tl > 0 and self.play_config.logging_thinking:
@@ -117,10 +125,10 @@ class ChessPlayer:
         # prediction_worker.join()
 
         # this is for play_gui, not necessary when training.
-        self.thinking_history[env.observation] = HistoryItem(action, policy, list(self.var_q[state]), list(self.var_n[state]))
+        # self.thinking_history[env.observation] = HistoryItem(action, policy, list(self.var_q[state]), list(self.var_n[state]))
         #self.deboog(env)
         if can_stop and self.play_config.resign_threshold is not None and \
-                        np.max(self.var_q[state] - (self.var_n[state] == 0) * 10) <= self.play_config.resign_threshold \
+                        np.max([a_s.q for a, a_s in self.tree[state].a.items()]) <= self.play_config.resign_threshold \
                         and self.play_config.min_resign_turn < env.turn:
             return None
         else:
@@ -165,26 +173,29 @@ class ChessPlayer:
         my_lock = self.node_lock[state]
 
         with my_lock:
-            if state not in self.visited:
-                self.visited.add(state)
+            if state not in self.tree:
+                # self.visited.add(state)
                 #print(state)
                 leaf_v = self.expand_and_evaluate(env = env) 
                 return leaf_v # I'm returning everything from the POV of side to move
 
 
-        assert state in self.visited
+        assert state in self.tree
 
         # SELECT STEP
         with my_lock:
             action_t = self.select_action_q_and_u(env, is_root_node)
 
-        env.step(self.config.labels[action_t])
+        env.step(action_t.uci())
 
         virtual_loss = self.play_config.virtual_loss
 
         with my_lock:
-            self.var_n[state][action_t] += virtual_loss
-            self.var_w[state][action_t] -= virtual_loss
+            my_visitstats = self.tree[state]
+            my_stats = my_visitstats.a[action_t]
+            my_stats.n += virtual_loss
+            my_visitstats.sum_n += virtual_loss
+            my_stats.w -= virtual_loss
 
         leaf_v = self.search_my_move(env)  # next move from enemy POV
         leaf_v = -leaf_v
@@ -193,16 +204,18 @@ class ChessPlayer:
             # on returning search path
             # update: N, W, Q, U
         with my_lock:
-            n = self.var_n[state][action_t] = self.var_n[state][action_t] - virtual_loss + 1
-            w = self.var_w[state][action_t] = self.var_w[state][action_t] + virtual_loss + leaf_v
-            self.var_q[state][action_t] = w / n
+            my_stats.n += -virtual_loss + 1
+            my_visitstats.sum_n += -virtual_loss + 1
+            my_stats.w += virtual_loss + leaf_v
+            my_stats.q = my_stats.w / my_stats.n
 
         return leaf_v
 
     #@profile
     def expand_and_evaluate(self, env) -> float:
         """expand new leaf
-
+        
+        this is called with state locked
         insert var_p[state], return leaf_v
 
         :param ChessEnv env:
@@ -211,7 +224,7 @@ class ChessPlayer:
 
         state_planes = env.canonical_input_planes()
 
-        leaf_p, leaf_v = self.predict(statex=state_planes,testv=env.testeval())
+        leaf_p, leaf_v = self.predict(statex=state_planes)
         # these are canonical policy and value (i.e. side to move is "white")
 
         if env.board.turn == chess.BLACK:
@@ -221,7 +234,7 @@ class ChessPlayer:
 
         state = self.state_key(env)
 
-        self.var_p[state] = leaf_p  # P is policy for next_player (black or white)
+        self.tree[state].p = leaf_p  # P is policy for next_player (black or white)
 
         return float(leaf_v)
 
@@ -240,9 +253,9 @@ class ChessPlayer:
             else:
                 time.sleep(self.play_config.prediction_worker_sleep_sec)
 
-    def predict(self, statex, testv):
+    def predict(self, statex):
         future = Future()
-        item = QueueItem(statex,testv, future)
+        item = QueueItem(statex, future)
         with self.prediction_queue_lock: # lists are atomic anyway though
             self.prediction_queue.append(item)
         return future.result()
@@ -254,47 +267,77 @@ class ChessPlayer:
         pc = self.play_config
 
         state = self.state_key(env)
+        my_visitstats = self.tree[state]
+        self.var_n = np.zeros(self.labels_n)
+        for action, a_s in my_visitstats.a.items():
+            self.var_n[self.move_lookup[action]] = a_s.n
+        #print(my_visitstats.sum_n)
+
         if env.turn < pc.change_tau_turn:
-            return self.var_n[state] / (np.sum(self.var_n[state])+1e-8)  # tau = 1
+            return self.var_n / (my_visitstats.sum_n + 1e-8)  # tau = 1
         else:
-            action = np.argmax(self.var_n[state])  # tau = 0
+            action = np.argmax(self.var_n)  # tau = 0
             ret = np.zeros(self.labels_n)
             ret[action] = 1
             return ret
 
-    def select_action_q_and_u(self, env, is_root_node) -> int:
+    def select_action_q_and_u(self, env, is_root_node) -> chess.Move:
+        # this method is called with state locked
         state = self.state_key(env)
 
         """Bottlenecks are these two lines"""
-        if state not in self.legal_binary:
-            legal_moves = [self.move_lookup[mov] for mov in env.board.legal_moves]
-            legal_labels = np.zeros(len(self.config.labels))
-            #logger.debug(legal_moves)
-            legal_labels[legal_moves] = 1
-            self.legal_binary[state] = legal_labels
-        else:
-            legal_labels = self.legal_binary[state]
+        # if state not in self.legal_binary:
+        #     legal_moves = [self.move_lookup[mov] for mov in env.board.legal_moves]
+        #     legal_labels = np.zeros(len(self.config.labels))
+        #     #logger.debug(legal_moves)
+        #     legal_labels[legal_moves] = 1
+        #     self.legal_binary[state] = legal_labels
+        # else:
+        #     legal_labels = self.legal_binary[state]
+
+        my_visitstats = self.tree[state]
+
+        if not my_visitstats.selected_yet: #initialize p
+            my_visitstats.selected_yet = True
+            legal_moves = env.board.legal_moves # oh wait i dont even need to memoize legal moves
+            for mov in legal_moves:
+                mov_p = my_visitstats.p[self.move_lookup[mov]]
+                my_visitstats.a[mov].p = mov_p
+                my_visitstats.tot_p += mov_p
 
         # noinspection PyUnresolvedReferences
-        xx_ = np.sqrt(np.sum(self.var_n[state]))  # SQRT of sum(N(s, b); for all b)
-        xx_ = max(xx_, 1)  # avoid u_=0 if N is all 0
-        p_ = self.var_p[state]
+        xx_ = np.sqrt(my_visitstats.sum_n)  # SQRT of sum(N(s, b); for all b)
+        #assert xx_ >= 1.0
+        #xx_ = max(xx_, 1)  # avoid u_=0 if N is all 0
+        p_ = my_visitstats.p
+
+        e = self.play_config.noise_eps
+        c_puct = self.play_config.c_puct
 
         if is_root_node:  # Is it correct?? -> (1-e)p + e*Dir(0.03)
-            p_ = (1 - self.play_config.noise_eps) * p_ + \
-                 self.play_config.noise_eps * np.random.dirichlet([self.play_config.dirichlet_alpha] * self.labels_n)
+            p_ = (1 - e) * p_ + \
+                 e * np.random.dirichlet([self.play_config.dirichlet_alpha] * self.labels_n)
 
         # re-normalize in legal moves
-        p_ = p_ * legal_labels
-        if np.sum(p_) > 0:
-            p_ = p_ / np.sum(p_)
+        # p_ = p_ * legal_labels
+        # if np.sum(p_) > 0:
+        #     p_ = p_ / np.sum(p_)
 
-        u_ = self.play_config.c_puct * p_ * xx_ / (1 + self.var_n[state]) # element-wise division...
+        best_s = -999
+        best_a = None
 
-        v_ = (self.var_q[state] + u_ + 1000) * legal_labels
+        for action, a_s in my_visitstats.a.items():
+            b = a_s.q + c_puct * (a_s.p/my_visitstats.tot_p) * xx_ / (1 + a_s.n)
+            if b > best_s:
+                best_s = b
+                best_a = action
+
+        # u_ = self.play_config.c_puct * p_ * xx_ / (1 + self.var_n[state]) # element-wise division...
+
+        # v_ = (self.var_q[state] + u_ + 1000) * legal_labels
         # noinspection PyTypeChecker
-        action_t = int(np.argmax(v_))
-        return action_t
+        # action_t = int(np.argmax(v_))
+        return best_a
 
     @staticmethod
     def state_key(env: ChessEnv):
