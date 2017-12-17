@@ -260,6 +260,7 @@ class ChessPlayer:
             ret[action] = 1
             return ret
 
+    #@profile
     def select_action_q_and_u(self, env, is_root_node) -> chess.Move:
         # this method is called with state locked
         state = self.state_key(env)
