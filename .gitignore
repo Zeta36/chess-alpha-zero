@@ -8,7 +8,8 @@ __pycache__
 *.pkl
 *.csv
 *.gz
-/data/
+/data/play_data/
+/data/model/next_generation/
 .ipynb_checkpoints/
 tmp/
 tmp.*
@@ -17,6 +18,5 @@ tmp.*
 /bin/
 /keys/*
 video/*
-*.h5
 logs/
 *.sh

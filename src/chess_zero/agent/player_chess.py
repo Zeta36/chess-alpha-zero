@@ -75,8 +75,8 @@ class ChessPlayer:
 
         for tl in range(self.play_config.thinking_loop):
             if tl > 0 and self.play_config.logging_thinking:
-                logger.debug(f"continue thinking: policy move=({action % 8}, {action // 8}), "
-                             f"value move=({action_by_value % 8}, {action_by_value // 8})")
+                logger.debug(f"continue thinking: policy move=({action}, "
+                             f"value move=({action_by_value})")
             self.search_moves(board)
             policy = self.calc_policy(board)
             action = int(np.random.choice(range(self.labels_n), p=policy))

@@ -77,10 +77,10 @@ class ResourceConfig:
         self.model_best_config_path = os.path.join(self.model_dir, "model_best_config.json")
         self.model_best_weight_path = os.path.join(self.model_dir, "model_best_weight.h5")
 
-        self.model_best_distributed_ftp_server = "alpha-chess-zero.mygamesonline.org"
-        self.model_best_distributed_ftp_user = "2537576_chess"
+        self.model_best_distributed_ftp_server = "files.000webhost.com"
+        self.model_best_distributed_ftp_user = "chess-alpha-zero"
         self.model_best_distributed_ftp_password = "alpha-chess-zero-2"
-        self.model_best_distributed_ftp_remote_path = "/alpha-chess-zero.mygamesonline.org/"
+        self.model_best_distributed_ftp_remote_path = "/public_html"
 
         self.next_generation_model_dir = os.path.join(self.model_dir, "next_generation")
         self.next_generation_model_dirname_tmpl = "model_%s"
@@ -103,11 +103,11 @@ class ResourceConfig:
 
 class PlayWithHumanConfig:
     def __init__(self):
-        self.simulation_num_per_move = 100
+        self.simulation_num_per_move = 200
         self.thinking_loop = 5
         self.logging_thinking = True
-        self.c_puct = 3
-        self.parallel_search_num = 16
+        self.c_puct = 1
+        self.parallel_search_num = 4
         self.noise_eps = 0
         self.change_tau_turn = 0
         self.resign_threshold = None
