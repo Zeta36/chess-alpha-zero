@@ -273,11 +273,11 @@ class ChessPlayer:
                 mov_p = my_visitstats.p[self.move_lookup[mov]]
                 my_visitstats.a[mov].p = mov_p
                 tot_p += mov_p
-            for action, a_s in my_visitstats.a.items():
+            for _, a_s in my_visitstats.a.items():
                 a_s.p /= tot_p
 
         # noinspection PyUnresolvedReferences
-        xx_ = np.sqrt(my_visitstats.sum_n)  # SQRT of sum(N(s, b); for all b)
+        xx_ = np.sqrt(my_visitstats.sum_n + 1)  # SQRT of sum(N(s, b); for all b)
 
         e = self.play_config.noise_eps
         c_puct = self.play_config.c_puct

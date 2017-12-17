@@ -46,8 +46,8 @@ class SelfPlayWorker:
             start_time = time()
             env = self.start_game(self.idx)
             end_time = time()
-            logger.debug(f"game {self.idx} time={end_time - start_time:.3f}s "
-                         f"halfmoves={int(env.turn)} {env.winner} "
+            logger.debug(f"game {self.idx:3} time={end_time - start_time:.3f}s "
+                         f"halfmoves={int(env.turn)} {env.winner:12} "
                          f"{'by resign ' if env.resigned else '          '}"
                          f"{env.observation.split(' ')[0]}")
             if (self.idx % self.config.play_data.nb_game_in_file) == 0:

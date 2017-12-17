@@ -24,16 +24,16 @@ class PlayConfig:
         self.simulation_num_per_move = 100
         self.thinking_loop = 1
         self.logging_thinking = False
-        self.c_puct = 3.5
+        self.c_puct = 1.5
         self.noise_eps = 0.25
         self.dirichlet_alpha = 0.3
-        self.change_tau_turn = 15
+        self.change_tau_turn = 150
         self.virtual_loss = 2
         self.parallel_search_num = 16
         self.prediction_worker_sleep_sec = 0.001
         self.resign_threshold = -0.8 # don't resign
         self.min_resign_turn = 5
-        self.max_game_length = 30
+        self.max_game_length = 50
 
 
 class TrainerConfig:
