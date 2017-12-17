@@ -26,8 +26,6 @@ if platform.system() != "Windows":
 QueueItem = namedtuple("QueueItem", "state v future")
 HistoryItem = namedtuple("HistoryItem", "action policy values visit")
 
-node_expanding = 0
-node_internal = 1
 #NodeType = enum.Enum("NodeType","internal expanding leaf") #MCTS node types
 
 logger = getLogger(__name__)
@@ -81,7 +79,8 @@ class ChessPlayer:
         self.var_q = defaultdict(lambda: np.zeros((self.labels_n,))) # mean action value
         self.var_p = defaultdict(lambda: np.zeros((self.labels_n,))) # prior probability
         self.legal_binary = defaultdict()
-        self.node_type = defaultdict(int)
+        self.visited = set()
+        self.node_lock = defaultdict(Lock)
 
     def sl_action(self, board, action):
 
@@ -207,17 +206,19 @@ class ChessPlayer:
 
         state = self.state_key(env)
 
-        if state not in self.node_type: # new (unvisited) leaf node
-            assert state not in self.node_type
-            self.node_type[state] = node_expanding
-            #print(state)
-            leaf_v = self.expand_and_evaluate(env=env) # why copy??????????
-            return leaf_v # I'm returning everything from the POV of side to move
+        with self.node_lock[state] as my_lock:
+            if state not in visited:
+                visited.add(state)
+                print(state)
+                leaf_v = self.expand_and_evaluate(env = env) # why copy??????????
+                my_lock.release()
+                return leaf_v # I'm returning everything from the POV of side to move
 
-        while self.node_type[state] == node_expanding: # state is leaf being expanded on another thread
-            time.sleep(self.play_config.wait_for_expanding_sleep_sec)
 
-        assert self.node_type[state] == node_internal
+        # while self.node_type[state] == node_expanding: # state is leaf being expanded on another thread
+        #     time.sleep(self.play_config.wait_for_expanding_sleep_sec)
+
+        assert state in visited
         #print (2)
 
         # SELECT STEP
@@ -270,7 +271,6 @@ class ChessPlayer:
         #print(">"+state)
 
         self.var_p[state] = leaf_p  # P is policy for next_player (black or white)
-        self.node_type[state] = node_internal
 
         return float(leaf_v)
 
