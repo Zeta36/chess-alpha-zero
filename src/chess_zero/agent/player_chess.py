@@ -46,7 +46,6 @@ class ChessPlayer:
         self.labels_n = config.n_labels
         self.labels = config.labels
         self.prediction_queue_lock = Lock()
-        self.search_threads = ThreadPoolExecutor(max_workers=self.play_config.parallel_search_num)
         self.is_thinking = False
 
         self.moves = []
@@ -99,15 +98,17 @@ class ChessPlayer:
         prediction_worker = Thread(target=self.predict_batch_worker,name="prediction_worker")
         prediction_worker.daemon = True
         prediction_worker.start()
-
-        for tl in range(self.play_config.thinking_loop):
-            self.search_moves(env)
-            policy = self.calc_policy(env)
-            action = int(np.random.choice(range(self.labels_n), p = policy))
-        self.is_thinking = False
+        try:
+            for tl in range(self.play_config.thinking_loop):
+                self.search_moves(env)
+                policy = self.calc_policy(env)
+                action = int(np.random.choice(range(self.labels_n), p = policy))
+        finally:
+            self.is_thinking = False
+        # self.is_thinking = False
         # prediction_worker.join()
 
-        self.deboog(env)
+        #self.deboog(env)
         if can_stop and self.play_config.resign_threshold is not None and \
                         np.max([a_s.q for a, a_s in self.tree[state].a.items()]) <= self.play_config.resign_threshold \
                         and self.play_config.min_resign_turn < env.turn:
@@ -172,9 +173,10 @@ class ChessPlayer:
         with my_lock:
             my_visitstats = self.tree[state]
             my_stats = my_visitstats.a[action_t]
+
             my_stats.n += virtual_loss
             my_visitstats.sum_n += virtual_loss
-            my_stats.w -= virtual_loss
+            my_stats.w += -virtual_loss
 
         leaf_v = self.search_my_move(env)  # next move from enemy POV
         leaf_v = -leaf_v
