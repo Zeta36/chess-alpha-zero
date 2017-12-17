@@ -40,6 +40,7 @@ class PlayConfig:
 
 class TrainerConfig:
     def __init__(self):
+        self.min_data_size_to_learn = 0
         self.vram_frac = 1.0
         self.batch_size = 384 # tune this to your gpu memory
         self.epoch_to_checkpoint = 1

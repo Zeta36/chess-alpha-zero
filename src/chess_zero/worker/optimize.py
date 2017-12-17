@@ -7,8 +7,7 @@ import keras.backend as k
 import numpy as np
 from keras.optimizers import SGD, Adam
 
-from chess_zero.agent.model_chess import ChessModel, loss_function_for_policy, \
-    loss_function_for_value
+from chess_zero.agent.model_chess import ChessModel
 from chess_zero.config import Config
 from chess_zero.lib import tf_util
 from chess_zero.lib.data_helper import get_game_data_filenames, read_game_data_from_file, \
@@ -41,7 +40,7 @@ class OptimizeWorker:
     def training(self):
         self.compile_model()
         last_load_data_step = last_save_step = total_steps = self.config.trainer.start_total_steps
-        min_data_size_to_learn = 4096
+        min_data_size_to_learn = 4.096
         self.load_play_data()
 
         while True:
@@ -168,7 +167,6 @@ class OptimizeWorker:
     @staticmethod
     def convert_to_training_data(data, augment = True):
         """
-
         :param data: format is SelfPlayWorker.buffer
         :return:
         """
@@ -189,13 +187,17 @@ class OptimizeWorker:
 
             state_planes = env.canonical_input_planes()
 
-            assert env.check_current_planes(state_planes)
+            # assert env.check_current_planes(state_planes)
 
-            state_list.append(state_planes)
             side_to_move = state_fen.split(" ")[1]
             if side_to_move == 'b':
                 policy = Config.flip_policy(policy)
 
+            policy /= np.sum(policy)
+
+            assert abs(np.sum(policy) - 1) < 1e-8
+
+            state_list.append(state_planes)
             policy_list.append(policy)
             value_list.append(value)
 

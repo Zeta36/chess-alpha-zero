@@ -178,7 +178,6 @@ class ChessPlayer:
     #@profile
     def expand_and_evaluate(self, env) -> float:
         """expand new leaf
-        
         this is called with state locked
         insert P(a|s), return leaf_v
         """
@@ -258,14 +257,15 @@ class ChessPlayer:
         return best_a
 
     def apply_temperature(self, policy, turn):
-        tau = np.power(self.play_config.tau_decay_rate,turn)
+        tau = np.power(self.play_config.tau_decay_rate, turn)
+        print(tau)
         if tau == 0:
             action = np.argmax(policy)
             ret = np.zeros(self.labels_n)
-            ret[action] = 1
+            ret[action] = 1.0
             return ret
         else:
-            ret = policy ** (1/tau)
+            ret = [np.power(p, 1/tau) for p in policy]
             ret /= np.sum(ret)
             return ret
 
@@ -282,6 +282,7 @@ class ChessPlayer:
         for action, a_s in my_visitstats.a.items():
             policy[self.move_lookup[action]] = a_s.n
 
+        policy /= np.sum(policy)
         return policy
         #print(my_visitstats.sum_n)
         # if env.turn < pc.change_tau_turn:

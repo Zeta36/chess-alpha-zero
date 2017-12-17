@@ -138,12 +138,3 @@ class ChessModel:
                 ftp_connection.quit()
             except:
                 pass
-
-
-def loss_function_for_policy(y_true, y_pred):
-    return categorical_crossentropy(y_true,y_pred)
-    #return k.sum(-y_true * k.log(y_pred + k.epsilon()), axis=-1)
-
-
-def loss_function_for_value(y_true, y_pred):
-    return mean_squared_error(y_true, y_pred)
