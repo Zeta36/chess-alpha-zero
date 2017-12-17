@@ -21,6 +21,4 @@ video/*
 logs/
 *.sh
 requirements.txt
-src/chess_zero/lib/tf_util.py
-helloworld.txt
 trace.html

@@ -1,5 +1,6 @@
 class EvaluateConfig:
     def __init__(self):
+        self.vram_frac = 1.0
         self.game_num = 50
         self.replace_rate = 0.55
         self.play_config = PlayConfig()
@@ -21,6 +22,7 @@ class PlayDataConfig:
 
 class PlayConfig:
     def __init__(self):
+        self.vram_frac = 1.0
         self.simulation_num_per_move = 100
         self.thinking_loop = 1
         self.logging_thinking = False
@@ -38,6 +40,7 @@ class PlayConfig:
 
 class TrainerConfig:
     def __init__(self):
+        self.vram_frac = 1.0
         self.batch_size = 384 # tune this to your gpu memory
         self.epoch_to_checkpoint = 1
         self.start_total_steps = 0

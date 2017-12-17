@@ -15,7 +15,7 @@ logger = getLogger(__name__)
 
 
 def start(config: Config):
-    tf_util.set_session_config(per_process_gpu_memory_fraction=0.2)
+    tf_util.set_session_config(config.eval.vram_frac)
     return EvaluateWorker(config).start()
 
 

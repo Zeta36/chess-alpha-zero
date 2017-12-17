@@ -21,7 +21,7 @@ logger = getLogger(__name__)
 
 
 def start(config: Config):
-    tf_util.set_session_config(per_process_gpu_memory_fraction=0.4)
+    tf_util.set_session_config(config.vram_frac)
     return OptimizeWorker(config).start()
 
 
@@ -195,7 +195,7 @@ class OptimizeWorker:
             side_to_move = state_fen.split(" ")[1]
             if side_to_move == 'b':
                 policy = Config.flip_policy(policy)
-                
+
             policy_list.append(policy)
             value_list.append(value)
 
