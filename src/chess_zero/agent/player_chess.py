@@ -1,12 +1,9 @@
 from concurrent.futures import Future, ThreadPoolExecutor
-from queue import Queue
 from collections import defaultdict, namedtuple
 from logging import getLogger
-import enum
 from threading import Thread,Lock
 
 from profilehooks import profile
-
 
 import time
 
@@ -62,7 +59,8 @@ class ChessPlayer:
         self.move_lookup = {k:v for k,v in zip((chess.Move.from_uci(move) for move in self.config.labels),range(len(self.config.labels)))}
         self.labels_n = config.n_labels
         self.labels = config.labels
-        self.prediction_queue = Queue()
+        self.prediction_queue = []
+        self.prediction_queue_lock = Lock()
         self.pred_worker = ThreadPoolExecutor(max_workers=1)
 
         self.moves = []
@@ -300,12 +298,15 @@ class ChessPlayer:
 
     def predict_batch_worker(self):
         q = self.prediction_queue
-        total = self.play_config.simulation_num_per_move
-        batch_size = self.play_config.prediction_queue_size
+        #total = self.play_config.simulation_num_per_move
+        #batch_size = self.play_config.prediction_queue_size
         origin = q.get()
         origin.future.set_result(self.api.predict(origin.state))
-        while total > 0:
-            item_list = [q.get(block=True) for _ in range(batch_size)]  # type: list[QueueItem]
+        while True:
+            with self.prediction_queue_lock:
+                item_list = self.prediction_queue
+                self.prediction_queue = []
+
             #logger.debug(f"predicting {len(item_list)} items")
             data = np.array([x.state for x in item_list])
             policy_ary, value_ary = self.api.predict(data)
@@ -313,12 +314,12 @@ class ChessPlayer:
             # value_ary = [x.v for x in item_list]
             for item, p, v in zip(item_list, policy_ary, value_ary):
                 item.future.set_result((p, v))
-            total -= batch_size
 
     def predict(self, statex, testv):
         future = Future()
         item = QueueItem(statex,testv, future)
-        self.prediction_queue.put(item)
+        with self.prediction_queue_lock: # lists are atomic anyway though
+            self.prediction_queue.append(item)
         # with self.pred_worker as executor:
         #     executor.submit(self.predict_batch)
         # if self.prediction_queue.qsize() >= self.play_config.prediction_queue_size:
