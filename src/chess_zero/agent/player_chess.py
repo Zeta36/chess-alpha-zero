@@ -75,10 +75,11 @@ class ChessPlayer:
         print(env.testeval())
         
         state = self.state_key(env)
+        my_visitstats = self.tree[state]
         stats = []
-        for move in env.board.legal_moves:
-            moi = self.move_lookup[move]
-            stats.append(np.asarray([self.var_n[state][moi], self.var_w[state][moi], self.var_q[state][moi], self.var_p[state][moi], moi]))
+        for action, a_s in my_visitstats.a.items():
+            moi=self.move_lookup[action]
+            stats.append(np.asarray([a_s.n, a_s.w, a_s.q, a_s.p, moi]))
         stats=np.asarray(stats)
         a = stats[stats[:,0].argsort()[::-1]]
 
@@ -106,7 +107,7 @@ class ChessPlayer:
         self.is_thinking = False
         # prediction_worker.join()
 
-        #self.deboog(env)
+        self.deboog(env)
         if can_stop and self.play_config.resign_threshold is not None and \
                         np.max([a_s.q for a, a_s in self.tree[state].a.items()]) <= self.play_config.resign_threshold \
                         and self.play_config.min_resign_turn < env.turn:
@@ -118,7 +119,7 @@ class ChessPlayer:
     def ask_thought_about(self, board) -> HistoryItem:
         return self.thinking_history.get(board)
 
-    @profile
+    #@profile
     def search_moves(self, env):
 
         # if ChessPlayer.dot == False:
@@ -130,8 +131,9 @@ class ChessPlayer:
         with ThreadPoolExecutor(max_workers=self.play_config.parallel_search_num) as executor:
             for _ in range(self.play_config.simulation_num_per_move):
                 futures.append(executor.submit(self.search_my_move,env=env.copy(),is_root_node=True))
-        [f.result() for f in futures]  
+        [f.result() for f in futures]  # join them all
 
+    @profile
     def search_my_move(self, env: ChessEnv, is_root_node=False) -> float:
         """
 
@@ -158,10 +160,9 @@ class ChessPlayer:
                 return leaf_v # I'm returning everything from the POV of side to move
 
 
-        assert state in self.tree
+        #assert state in self.tree
 
         # SELECT STEP
-        with my_lock:
             action_t = self.select_action_q_and_u(env, is_root_node)
 
         env.step(action_t.uci())
@@ -194,7 +195,7 @@ class ChessPlayer:
         """expand new leaf
         
         this is called with state locked
-        insert var_p[state], return leaf_v
+        insert P(a|s), return leaf_v
 
         :param ChessEnv env:
         :return: leaf_v
@@ -246,15 +247,15 @@ class ChessPlayer:
 
         state = self.state_key(env)
         my_visitstats = self.tree[state]
-        self.var_n = np.zeros(self.labels_n)
+        var_n = np.zeros(self.labels_n)
         for action, a_s in my_visitstats.a.items():
-            self.var_n[self.move_lookup[action]] = a_s.n
+            var_n[self.move_lookup[action]] = a_s.n
         #print(my_visitstats.sum_n)
 
         if env.turn < pc.change_tau_turn:
-            return self.var_n / (my_visitstats.sum_n + 1e-8)  # tau = 1
+            return var_n / (my_visitstats.sum_n + 1e-8)  # tau = 1
         else:
-            action = np.argmax(self.var_n)  # tau = 0
+            action = np.argmax(var_n)  # tau = 0
             ret = np.zeros(self.labels_n)
             ret[action] = 1
             return ret

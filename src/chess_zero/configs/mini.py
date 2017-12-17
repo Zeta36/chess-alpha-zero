@@ -29,8 +29,8 @@ class PlayConfig:
         self.dirichlet_alpha = 0.3
         self.change_tau_turn = 10
         self.virtual_loss = 3
-        self.parallel_search_num = 8
-        self.prediction_worker_sleep_sec = 0.0001
+        self.parallel_search_num = 16
+        self.prediction_worker_sleep_sec = 0.01
         self.resign_threshold = -0.8 # don't resign
         self.min_resign_turn = 5
         self.average_chess_movements = 50
