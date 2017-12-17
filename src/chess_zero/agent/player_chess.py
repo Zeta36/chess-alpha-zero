@@ -147,8 +147,7 @@ class ChessPlayer:
         if env.done:
             if env.winner == Winner.draw:
                 return 0
-            if (env.winner == Winner.white) == (env.board.turn == chess.WHITE):
-                return 1 # winner is side-to-move
+            assert (env.winner == Winner.white) != (env.board.turn == chess.WHITE) # side to move can't be winner!
             return -1
 
         state = self.state_key(env)
@@ -225,7 +224,6 @@ class ChessPlayer:
                 with self.prediction_queue_lock:
                     item_list = self.prediction_queue
                     self.prediction_queue = []
-
                 #logger.debug(f"predicting {len(item_list)} items")
                 data = np.array([x.state for x in item_list])
                 policy_ary, value_ary = self.api.predict(data)
@@ -253,7 +251,6 @@ class ChessPlayer:
         for action, a_s in my_visitstats.a.items():
             var_n[self.move_lookup[action]] = a_s.n
         #print(my_visitstats.sum_n)
-
         if env.turn < pc.change_tau_turn:
             return var_n / (my_visitstats.sum_n + 1e-8)  # tau = 1
         else:

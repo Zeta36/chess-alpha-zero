@@ -47,7 +47,7 @@ class SelfPlayWorker:
             env = self.start_game(self.idx)
             end_time = time()
             logger.debug(f"game {self.idx} time={end_time - start_time:.3f}s "
-                         f"turn={int(env.turn/2)} {env.winner} "
+                         f"halfmoves={int(env.turn)} {env.winner} "
                          f"{'by resign ' if env.resigned else '          '}"
                          f"{env.observation.split(' ')[0]}")
             if (self.idx % self.config.play_data.nb_game_in_file) == 0:
@@ -59,14 +59,14 @@ class SelfPlayWorker:
         self.black = ChessPlayer(self.config, self.model)
         self.white = ChessPlayer(self.config, self.model)
         while not self.env.done:
-            if self.env.turn >= self.config.eval.max_game_length:
+            if self.env.turn >= self.config.play.max_game_length:
                 self.env.adjudicate()
                 break
             if self.env.board.turn == chess.BLACK:
                 action = self.black.action(self.env)
             else:
                 action = self.white.action(self.env)
-            print(action)
+            #print(action)
             self.env.step(action)
         self.finish_game()
         self.save_play_data(write=idx % self.config.play_data.nb_game_in_file == 0)

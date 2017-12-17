@@ -41,6 +41,7 @@ class ChessModel:
             x = self._build_residual_block(x)
 
         res_out = x
+        
         # for policy output
         x = Conv2D(filters=2, kernel_size=1, data_format="channels_first", kernel_regularizer=l2(mc.l2_reg))(res_out)
         x = BatchNormalization(axis=1)(x)
