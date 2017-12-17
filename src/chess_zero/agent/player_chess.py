@@ -173,27 +173,29 @@ class ChessPlayer:
 
 
         assert state in self.visited
-        #print (2)
 
         # SELECT STEP
-
-        action_t = self.select_action_q_and_u(env, is_root_node)
+        with my_lock:
+            action_t = self.select_action_q_and_u(env, is_root_node)
 
         env.step(self.config.labels[action_t])
 
         virtual_loss = self.play_config.virtual_loss
-        self.var_n[state][action_t] += virtual_loss
-        self.var_w[state][action_t] -= virtual_loss
+
+        with my_lock:
+            self.var_n[state][action_t] += virtual_loss
+            self.var_w[state][action_t] -= virtual_loss
 
         leaf_v = self.search_my_move(env)  # next move from enemy POV
         leaf_v = -leaf_v
 
-        # BACKUP STEP
-        # on returning search path
-        # update: N, W, Q, U
-        n = self.var_n[state][action_t] = self.var_n[state][action_t] - virtual_loss + 1
-        w = self.var_w[state][action_t] = self.var_w[state][action_t] + virtual_loss + leaf_v
-        self.var_q[state][action_t] = w / n
+            # BACKUP STEP
+            # on returning search path
+            # update: N, W, Q, U
+        with my_lock:
+            n = self.var_n[state][action_t] = self.var_n[state][action_t] - virtual_loss + 1
+            w = self.var_w[state][action_t] = self.var_w[state][action_t] + virtual_loss + leaf_v
+            self.var_q[state][action_t] = w / n
 
         return leaf_v
 
