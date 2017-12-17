@@ -28,10 +28,10 @@ class PlayConfig:
         self.noise_eps = 0.25
         self.dirichlet_alpha = 0.3
         self.change_tau_turn = 10
-        self.virtual_loss = 0.5
-        self.prediction_queue_size = 16
+        self.virtual_loss = 3
+        self.prediction_queue_size = 8
         self.parallel_search_num = 16
-        self.prediction_worker_sleep_sec = 0.00001
+        # self.prediction_worker_sleep_sec = 0.00001
         self.wait_for_expanding_sleep_sec = 0.000001
         self.resign_threshold = -0.8 # don't resign
         self.min_resign_turn = 5
