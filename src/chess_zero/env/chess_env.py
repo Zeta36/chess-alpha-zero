@@ -12,14 +12,6 @@ Winner = enum.Enum("Winner", "black white draw")
 
 
 class ChessEnv:
-
-    # one_hot = {}
-    # one_hot.update(dict.fromkeys(['K', 'k'], [1, 0, 0, 0, 0, 0]))
-    # one_hot.update(dict.fromkeys(['Q', 'q'], [0, 1, 0, 0, 0, 0]))
-    # one_hot.update(dict.fromkeys(['R', 'r'], [0, 0, 1, 0, 0, 0]))
-    # one_hot.update(dict.fromkeys(['B', 'b'], [0, 0, 0, 1, 0, 0]))
-    # one_hot.update(dict.fromkeys(['N', 'n'], [0, 0, 0, 0, 1, 0]))
-    # one_hot.update(dict.fromkeys(['P', 'p'], [0, 0, 0, 0, 0, 1]))
     plane_order = ['K','Q','R','B','N','P','k','q','r','b','n','p']
     ind = {}
 
@@ -40,7 +32,6 @@ class ChessEnv:
 
     def update(self, board):
         self.board = chess.Board(board)
-        self.turn = self.board.fullmove_number
         self.done = False
         self.winner = None
         self.resigned = False
@@ -153,7 +144,7 @@ class ChessEnv:
         realfen = self.board.fen()
         if self.board.turn == chess.BLACK:
             realfen = ChessEnv.maybe_flip_fen(realfen, flip=True)
-        assert "".join(fakefen) == ChessEnv.replace_tags_board(realfen)
+        return "".join(fakefen) == ChessEnv.replace_tags_board(realfen)
 
 
     @staticmethod

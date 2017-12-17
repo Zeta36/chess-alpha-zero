@@ -34,7 +34,7 @@ class ActionStats:
         self.q = 0
 
 class ChessPlayer:
-    dot = False
+    # dot = False
     def __init__(self, config: Config, model=None, play_config=None):
 
         self.config = config
@@ -59,17 +59,6 @@ class ChessPlayer:
         self.node_lock = defaultdict(Lock)
         self.prediction_queue = []
 
-    def sl_action(self, board, action):
-
-        env = ChessEnv().update(board)
-
-        policy = np.zeros(self.labels_n)
-        k = self.move_lookup[chess.Move.from_uci(action)] 
-        policy[k] = 1.0
-
-        self.moves.append([env.observation, list(policy)])
-        return action
-
     def deboog(self, env):
         print(env.testeval())
         
@@ -77,9 +66,9 @@ class ChessPlayer:
         my_visitstats = self.tree[state]
         stats = []
         for action, a_s in my_visitstats.a.items():
-            moi=self.move_lookup[action]
+            moi = self.move_lookup[action]
             stats.append(np.asarray([a_s.n, a_s.w, a_s.q, a_s.p, moi]))
-        stats=np.asarray(stats)
+        stats = np.asarray(stats)
         a = stats[stats[:,0].argsort()[::-1]]
 
         for s in a:
@@ -102,7 +91,7 @@ class ChessPlayer:
             for tl in range(self.play_config.thinking_loop):
                 self.search_moves(env)
                 policy = self.calc_policy(env)
-                action = int(np.random.choice(range(self.labels_n), p = policy))
+                action = int(np.random.choice(range(self.labels_n), p = self.apply_temperature(policy,env.turn)))
         finally:
             self.is_thinking = False
         # self.is_thinking = False
@@ -110,7 +99,7 @@ class ChessPlayer:
 
         #self.deboog(env)
         if can_stop and self.play_config.resign_threshold is not None and \
-                        np.max([a_s.q for a, a_s in self.tree[state].a.items()]) <= self.play_config.resign_threshold \
+                        np.max([a_s.q for _, a_s in self.tree[state].a.items()]) <= self.play_config.resign_threshold \
                         and self.play_config.min_resign_turn < env.turn:
             return None
         else:
@@ -122,7 +111,6 @@ class ChessPlayer:
 
     #@profile
     def search_moves(self, env):
-
         # if ChessPlayer.dot == False:
         #     import stacktracer
         #     stacktracer.trace_start("trace.html")
@@ -137,17 +125,14 @@ class ChessPlayer:
     @profile
     def search_my_move(self, env: ChessEnv, is_root_node=False) -> float:
         """
-
         Q, V is value for this Player(always white).
         P is value for the player of next_player (black or white)
-        :param env:
-        :param is_root_node:
         :return: leaf value
         """
         if env.done:
             if env.winner == Winner.draw:
                 return 0
-            assert (env.winner == Winner.white) != (env.board.turn == chess.WHITE) # side to move can't be winner!
+            #assert (env.winner == Winner.white) != (env.board.turn == chess.WHITE) # side to move can't be winner!
             return -1
 
         state = self.state_key(env)
@@ -158,7 +143,6 @@ class ChessPlayer:
             if state not in self.tree:
                 leaf_v = self.expand_and_evaluate(env = env) 
                 return leaf_v # I'm returning everything from the POV of side to move
-
 
         #assert state in self.tree
 
@@ -180,9 +164,9 @@ class ChessPlayer:
         leaf_v = self.search_my_move(env)  # next move from enemy POV
         leaf_v = -leaf_v
 
-            # BACKUP STEP
-            # on returning search path
-            # update: N, W, Q, U
+        # BACKUP STEP
+        # on returning search path
+        # update: N, W, Q
         with my_lock:
             my_stats.n += -virtual_loss + 1
             my_visitstats.sum_n += -virtual_loss + 1
@@ -197,9 +181,6 @@ class ChessPlayer:
         
         this is called with state locked
         insert P(a|s), return leaf_v
-
-        :param ChessEnv env:
-        :return: leaf_v
         """
 
         state_planes = env.canonical_input_planes()
@@ -209,7 +190,6 @@ class ChessPlayer:
 
         if env.board.turn == chess.BLACK:
             leaf_p = Config.flip_policy(leaf_p) # get it back to python-chess form
-
         #np.testing.assert_array_equal(Config.flip_policy(Config.flip_policy(leaf_p)), leaf_p)  
 
         state = self.state_key(env)
@@ -238,26 +218,6 @@ class ChessPlayer:
         with self.prediction_queue_lock: # lists are atomic anyway though
             self.prediction_queue.append(item)
         return future.result()
-
-    def calc_policy(self, env):
-        """calc π(a|s0)
-        :return:
-        """
-        pc = self.play_config
-
-        state = self.state_key(env)
-        my_visitstats = self.tree[state]
-        var_n = np.zeros(self.labels_n)
-        for action, a_s in my_visitstats.a.items():
-            var_n[self.move_lookup[action]] = a_s.n
-        #print(my_visitstats.sum_n)
-        if env.turn < pc.change_tau_turn:
-            return var_n / (my_visitstats.sum_n + 1e-8)  # tau = 1
-        else:
-            action = np.argmax(var_n)  # tau = 0
-            ret = np.zeros(self.labels_n)
-            ret[action] = 1
-            return ret
 
     #@profile
     def select_action_q_and_u(self, env, is_root_node) -> chess.Move:
@@ -296,6 +256,51 @@ class ChessPlayer:
                 best_a = action
 
         return best_a
+
+    def apply_temperature(self, policy, turn):
+        tau = np.power(self.play_config.tau_decay_rate,turn)
+        if tau == 0:
+            action = np.argmax(policy)
+            ret = np.zeros(self.labels_n)
+            ret[action] = 1
+            return ret
+        else:
+            ret = policy ** (1/tau)
+            ret /= np.sum(ret)
+            return ret
+
+    def calc_policy(self, env):
+        """calc π(a|s0)
+        :return:
+        """
+        pc = self.play_config
+        tau = np.power(self.play_config.tau_decay_rate,env.turn)
+
+        state = self.state_key(env)
+        my_visitstats = self.tree[state]
+        policy = np.zeros(self.labels_n)
+        for action, a_s in my_visitstats.a.items():
+            policy[self.move_lookup[action]] = a_s.n
+
+        return policy
+        #print(my_visitstats.sum_n)
+        # if env.turn < pc.change_tau_turn:
+        #     return var_n / (my_visitstats.sum_n + 1e-8)  # tau = 1
+        # else:
+        #     action = np.argmax(var_n)  # tau = 0
+        #     ret = np.zeros(self.labels_n)
+        #     ret[action] = 1
+        #     return ret
+
+    def sl_action(self, board, action):
+        env = ChessEnv().update(board)
+
+        policy = np.zeros(self.labels_n)
+        k = self.move_lookup[chess.Move.from_uci(action)] 
+        policy[k] = 1.0
+
+        self.moves.append([env.observation, list(policy)])
+        return action
 
     @staticmethod
     def state_key(env: ChessEnv):

@@ -46,10 +46,10 @@ class SelfPlayWorker:
             start_time = time()
             env = self.start_game(self.idx)
             end_time = time()
-            logger.debug(f"game {self.idx:3} time={end_time - start_time:.3f}s "
-                         f"halfmoves={int(env.turn)} {env.winner:12} "
+            logger.debug(f"game {self.idx:3} time={end_time - start_time:.1f}s "
+                         f"halfmoves={env.turn:2} {env.winner:12} "
                          f"{'by resign ' if env.resigned else '          '}"
-                         f"{env.observation.split(' ')[0]}")
+                         f"{env.observation.rsplit(' ',4)[0]}")
             if (self.idx % self.config.play_data.nb_game_in_file) == 0:
                 reload_best_model_weight_if_changed(self.model)
             self.idx += 1

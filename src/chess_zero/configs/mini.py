@@ -3,11 +3,11 @@ class EvaluateConfig:
         self.game_num = 50
         self.replace_rate = 0.55
         self.play_config = PlayConfig()
-        self.play_config.simulation_num_per_move = 50
+        self.play_config.simulation_num_per_move = 100
         self.play_config.thinking_loop = 1
         self.play_config.c_puct = 1
-        self.play_config.change_tau_turn = 0
-        self.play_config.noise_eps = 0 # try 0.25
+        self.play_config.tau_decay_rate = 0
+        self.play_config.noise_eps = 0
         self.evaluate_latest_first = True
         self.max_game_length = 50
 
@@ -27,11 +27,11 @@ class PlayConfig:
         self.c_puct = 1.5
         self.noise_eps = 0.25
         self.dirichlet_alpha = 0.3
-        self.change_tau_turn = 150
+        self.tau_decay_rate = 0.99
         self.virtual_loss = 2
         self.parallel_search_num = 16
         self.prediction_worker_sleep_sec = 0.001
-        self.resign_threshold = -0.8 # don't resign
+        self.resign_threshold = -0.8
         self.min_resign_turn = 5
         self.max_game_length = 50
 

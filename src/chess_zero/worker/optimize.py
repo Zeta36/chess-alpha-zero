@@ -174,9 +174,9 @@ class OptimizeWorker:
         """
         state_list = []
         policy_list = []
-        z_list = []
+        value_list = []
         env = ChessEnv().reset()
-        for state_fen, policy, z in data:
+        for state_fen, policy, value in data:
             move_number = int(state_fen.split(' ')[5])
             # f2 = ChessEnv.maybe_flip_fen(ChessEnv.maybe_flip_fen(state_fen,True),True)
             # assert state_fen == f2
@@ -189,13 +189,14 @@ class OptimizeWorker:
 
             state_planes = env.canonical_input_planes()
 
-            env.check_current_planes(state_planes)
+            assert env.check_current_planes(state_planes)
 
             state_list.append(state_planes)
             side_to_move = state_fen.split(" ")[1]
             if side_to_move == 'b':
                 policy = Config.flip_policy(policy)
+                
             policy_list.append(policy)
-            z_list.append(z)
+            value_list.append(value)
 
         return np.array(state_list), np.array(policy_list), np.array(z_list)
