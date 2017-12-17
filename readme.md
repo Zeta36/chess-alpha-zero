@@ -38,6 +38,10 @@ Here you can see an example of a game played for me against this model (AI plays
  
 ![partida1](https://user-images.githubusercontent.com/17341905/33597844-ea53c8ae-d9a0-11e7-8564-4b9b0f35a221.gif)
 
+Here we have a game trained by @bame55 (AI plays white):
+
+![partida3](https://user-images.githubusercontent.com/17341905/34030278-8796f7c6-e16c-11e7-9ba4-97af15f2cde5.gif)
+
 This model plays in this way after only 5 epoch iterations of the 'opt' worker, the 'eval' worker changed 4 times the best model (4 of 5). At this moment the loss of the 'opt' worker is 5.1 (and still seems to be converging very well).
 
 As I have not GPU, I had to evaluate ('eval') using only "self.simulation_num_per_move = 10" and only 10 files of play data for the 'opt' worker. I'm pretty sure if anybody is able to run in a good GPU with a more powerful configuration the results after complete convergence would be really good.
@@ -89,6 +93,13 @@ This AlphaGo Zero implementation consists of three worker `self`, `opt` and `eva
 For evaluation, you can play chess with the BestModel.
 
 * `play_gui` is Play Game vs BestModel using ASCII character encoding.
+
+### GUI
+* `uci` launches the Universal Chess Interface, for use in a GUI.
+
+To set up ChessZero with a GUI, point it to `C0uci.bat` (or rename to .sh).
+For example, this is screenshot of the random model using Arena's self-play feature:
+![capture](https://user-images.githubusercontent.com/4205182/34057277-e9c99118-e19b-11e7-91ee-dd717f7efe9d.PNG)
 
 Data
 -----
