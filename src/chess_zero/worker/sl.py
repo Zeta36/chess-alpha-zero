@@ -25,7 +25,6 @@ def start(config: Config):
 class SupervisedLearningWorker:
     def __init__(self, config: Config, env=None):
         """
-
         :param config:
         :param ChessEnv|None env:
         :param chess_zero.agent.model_chess.ChessModel|None model:
@@ -160,6 +159,9 @@ class SupervisedLearningWorker:
         thread = Thread(target = write_game_data_to_file, args=(path,(self.buffer)))
         thread.start()
         self.buffer = []
+
+    def generate_eval(self, n):
+        return
 
     # def remove_play_data(self):
     #     files = get_game_data_filenames(self.config.resource)
