@@ -1,7 +1,7 @@
 from concurrent.futures import Future, ThreadPoolExecutor
 from collections import defaultdict, namedtuple
 from logging import getLogger
-from threading import Thread,Lock
+from threading import Thread, Lock
 
 from profilehooks import profile
 
@@ -89,17 +89,16 @@ class ChessPlayer:
         prediction_worker.start()
         try:
             for tl in range(self.play_config.thinking_loop):
-                self.search_moves(env)
+                root_value = self.search_moves(env)
                 policy = self.calc_policy(env)
-                action = int(np.random.choice(range(self.labels_n), p = self.apply_temperature(policy,env.turn)))
+                action = int(np.random.choice(range(self.labels_n), p = self.apply_temperature(policy, env.turn)))
         finally:
             self.is_thinking = False
-        # self.is_thinking = False
         # prediction_worker.join()
-
+        print(root_value)
         #self.deboog(env)
         if can_stop and self.play_config.resign_threshold is not None and \
-                        np.max([a_s.q for _, a_s in self.tree[state].a.items()]) <= self.play_config.resign_threshold \
+                        root_value <= self.play_config.resign_threshold \
                         and self.play_config.min_resign_turn < env.turn:
             return None
         else:
@@ -110,7 +109,7 @@ class ChessPlayer:
         return self.thinking_history.get(board)
 
     #@profile
-    def search_moves(self, env):
+    def search_moves(self, env) -> float:
         # if ChessPlayer.dot == False:
         #     import stacktracer
         #     stacktracer.trace_start("trace.html")
@@ -120,7 +119,8 @@ class ChessPlayer:
         with ThreadPoolExecutor(max_workers=self.play_config.parallel_search_num) as executor:
             for _ in range(self.play_config.simulation_num_per_move):
                 futures.append(executor.submit(self.search_my_move,env=env.copy(),is_root_node=True))
-        [f.result() for f in futures]  # join them all
+
+        return np.max([f.result() for f in futures])
 
     @profile
     def search_my_move(self, env: ChessEnv, is_root_node=False) -> float:
@@ -141,15 +141,14 @@ class ChessPlayer:
 
         with my_lock:
             if state not in self.tree:
-                leaf_v = self.expand_and_evaluate(env = env) 
+                leaf_p, leaf_v = self.expand_and_evaluate(env = env)
+                self.tree[state].p = leaf_p
                 return leaf_v # I'm returning everything from the POV of side to move
 
             #assert state in self.tree
 
         # SELECT STEP
             action_t = self.select_action_q_and_u(env, is_root_node)
-
-        env.step(action_t.uci())
 
         virtual_loss = self.play_config.virtual_loss
 
@@ -161,6 +160,7 @@ class ChessPlayer:
             my_visitstats.sum_n += virtual_loss
             my_stats.w += -virtual_loss
 
+        env.step(action_t.uci())
         leaf_v = self.search_my_move(env)  # next move from enemy POV
         leaf_v = -leaf_v
 
@@ -176,12 +176,11 @@ class ChessPlayer:
         return leaf_v
 
     #@profile
-    def expand_and_evaluate(self, env) -> float:
+    def expand_and_evaluate(self, env) -> np.ndarray, float:
         """ expand new leaf
         this is called with state locked
         insert P(a|s), return leaf_v
         """
-
         state_planes = env.canonical_input_planes()
 
         leaf_p, leaf_v = self.predict(statex=state_planes)
@@ -191,11 +190,7 @@ class ChessPlayer:
             leaf_p = Config.flip_policy(leaf_p) # get it back to python-chess form
         #np.testing.assert_array_equal(Config.flip_policy(Config.flip_policy(leaf_p)), leaf_p)  
 
-        state = self.state_key(env)
-
-        self.tree[state].p = leaf_p  # P is policy for next_player (black or white)
-
-        return float(leaf_v)
+        return leaf_p, leaf_v
 
     def predict_batch_worker(self):
         while self.is_thinking:
@@ -232,7 +227,7 @@ class ChessPlayer:
                 mov_p = my_visitstats.p[self.move_lookup[mov]]
                 my_visitstats.a[mov].p = mov_p
                 tot_p += mov_p
-            for _, a_s in my_visitstats.a.items():
+            for a_s in my_visitstats.a.values():
                 a_s.p /= tot_p
 
         # noinspection PyUnresolvedReferences
@@ -265,7 +260,7 @@ class ChessPlayer:
             ret[action] = 1.0
             return ret
         else:
-            ret = [np.power(p, 1/tau) for p in policy]
+            ret = np.power(policy, 1/tau)
             ret /= np.sum(ret)
             return ret
 
