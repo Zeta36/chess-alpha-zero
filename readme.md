@@ -4,7 +4,7 @@ About
 Chess reinforcement learning by [AlphaGo Zero](https://deepmind.com/blog/alphago-zero-learning-scratch/) methods.
 
 This project is based in two main resources:
-1) DeepMind's Oct19th publication: [Mastering the Game of Go without Human Knowledge](https://www.nature.com/articles/nature24270.epdf?author_access_token=VJXbVjaSHxFoctQQ4p2k4tRgN0jAjWel9jnR3ZoTv0PVW4gB86EEpGqTRDtpIz-2rmo8-KG06gqVobU5NSCFeHILHcVFUeMsbvwS-lxjqQGg98faovwjxeTUgZAUMnRQ).
+1) DeepMind's Oct 19th publication: [Mastering the Game of Go without Human Knowledge](https://www.nature.com/articles/nature24270.epdf?author_access_token=VJXbVjaSHxFoctQQ4p2k4tRgN0jAjWel9jnR3ZoTv0PVW4gB86EEpGqTRDtpIz-2rmo8-KG06gqVobU5NSCFeHILHcVFUeMsbvwS-lxjqQGg98faovwjxeTUgZAUMnRQ).
 2) The <b>great</b> Reversi development of the DeepMind ideas that @mokemokechicken did in his repo: https://github.com/mokemokechicken/reversi-alpha-zero
 
 Note: <b>This project is still under construction!!</b>
@@ -12,10 +12,10 @@ Note: <b>This project is still under construction!!</b>
 News
 ----
 
-DeepMind just released today a new version of thr AlphaGo Zero idea (named now AlphaZero) where they mastering chess from scratch: 
+DeepMind just released today a new version of their AlphaGo Zero idea (named now AlphaZero) where they mastering chess from scratch: 
 https://arxiv.org/pdf/1712.01815.pdf. In fact, in chess AlphaZero outperformed Stockfish after just 4 hours (300k steps) Wow!
 
-There are new ideas we have to take into account for this project. It seems, for exmaple, that two planes for feeding the input model are not enough.
+There are new ideas we have to take into account for this project. It seems, for example, that two planes for feeding the input model are not enough.
 
 Environment
 -----------
@@ -23,12 +23,6 @@ Environment
 * Python 3.6.3
 * tensorflow-gpu: 1.3.0
 * Keras: 2.0.8
-
-Hardware Support from the company Starshot Software: http://www.starshotsoftware.com/
-=====
-![Starshot Software](http://www.starshotsoftware.com/wp-content/uploads/2016/10/starshot_logo_400.png)
-
-The company where I currently work gave me recently hardware support, offering an Microsoft Azure server with a GPU NVIDIA Tesla M60. I hope to get really good results now that I've got this big machine avaiable. 
 
 ### First "good" results
 
@@ -184,16 +178,6 @@ If next-generation model wins, it becomes BestModel.
 ### options
 * `--type mini`: use mini config for testing, (see `src/chess_zero/configs/mini.py`)
 
-Play Game
----------
-
-```bash
-python src/chess_zero/run.py play_gui
-```
-
-
-When executed, ordinary chess board will be displayed in ASCII code and you can play against BestModel.
-
 
 Tips and Memo
 ====
@@ -219,5 +203,5 @@ The following table is records of the best models.
 
 |best model generation|winning percentage to best model|Time Spent(hours)|note|
 |-----|-----|-----|-----|
-|1|-|-|　|
+|1|-|-|&#12288;|
 
