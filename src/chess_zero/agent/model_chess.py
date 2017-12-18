@@ -96,13 +96,13 @@ class ChessModel:
                 ftp_connection.quit()
             except:
                 pass
-
+        from tensorflow import get_default_graph
         if os.path.exists(config_path) and os.path.exists(weight_path):
             logger.debug(f"loading model from {config_path}")
             with open(config_path, "rt") as f:
                 self.model = Model.from_config(json.load(f))
             self.model.load_weights(weight_path)
-            self.model._make_predict_function()
+            self.graph = get_default_graph()
             self.digest = self.fetch_digest(weight_path)
             logger.debug(f"loaded model digest = {self.digest}")
             return True

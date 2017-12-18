@@ -4,7 +4,7 @@ class EvaluateConfig:
         self.game_num = 50
         self.replace_rate = 0.55
         self.play_config = PlayConfig()
-        self.play_config.simulation_num_per_move = 50
+        self.play_config.simulation_num_per_move = 100
         self.play_config.thinking_loop = 1
         self.play_config.c_puct = 1
         self.play_config.tau_decay_rate = 0
@@ -23,7 +23,7 @@ class PlayDataConfig:
 class PlayConfig:
     def __init__(self):
         self.vram_frac = 1.0
-        self.simulation_num_per_move = 50
+        self.simulation_num_per_move = 100
         self.thinking_loop = 1
         self.logging_thinking = False
         self.c_puct = 1.5

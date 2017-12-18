@@ -81,26 +81,27 @@ class ChessEnv:
     def adjudicate(self):
         self.resigned = False
         self.done = True
-        if abs(self.testeval()) < 0.01:
+        score = self.testeval(absolute = True)
+        if abs(score) < 0.01:
             self.winner= Winner.draw
-        elif self.testeval() > 0:
-            self.winner = (Winner.white if self.board.turn == chess.WHITE else Winner.black)
+        elif score > 0:
+            self.winner = Winner.white
         else:
-            self.winner = (Winner.black if self.board.turn == chess.WHITE else Winner.white)
+            self.winner = Winner.black
 
     def ending_average_game(self):
         self.resigned = False
         self.done = True
         self.winner = Winner.draw
 
-    def testeval(self) -> float:
+    def testeval(self, absolute = False) -> float:
         piecevals = {'K': 64, 'Q': 9, 'R':5,'B':3.25,'N':3,'P':1}
         ans = 0.0
         tot = 0
         for c in self.board.fen().split(' ')[0]:
             if not c.isalpha():
                 continue
-            assert c.upper() in piecevals   
+            #assert c.upper() in piecevals   
             if c.isupper():
                 ans += piecevals[c]
                 tot += piecevals[c]
@@ -108,7 +109,7 @@ class ChessEnv:
                 ans -= piecevals[c.upper()]
                 tot += piecevals[c.upper()]
         v = ans/tot
-        if self.board.turn == chess.BLACK:
+        if not absolue and self.board.turn == chess.BLACK:
             v = -v
         assert abs(v) <= 1
         return v
@@ -211,16 +212,9 @@ class ChessEnv:
                 v = board_state[rank * 8 + file]
                 if v.isalpha():
                     pieces_both[ChessEnv.ind[v]][rank][file] = 1
-        # pieces_p1 = [ChessEnv.one_hot[val] if val.isupper() else [0, 0, 0, 0, 0, 0] \
-        #     for val in board_state]
-        # pieces_p1 = np.transpose(np.reshape(pieces_p1, (8, 8, 6)), (2, 0, 1))
-        # pieces_p2 = [ChessEnv.one_hot[val] if val.islower() else [0, 0, 0, 0, 0, 0] \
-        #     for val in board_state]
-        # pieces_p2 = np.transpose(np.reshape(pieces_p2, (8, 8, 6)), (2, 0, 1))
-        # assert pieces_p1.shape == (6, 8, 8)
-        # state = np.vstack((pieces_p1, pieces_p2))
         assert pieces_both.shape == (12, 8, 8)
         return pieces_both
+
     def copy(self):
         env = copy.copy(self)
         env.board = copy.copy(self.board)

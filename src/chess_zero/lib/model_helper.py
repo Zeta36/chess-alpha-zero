@@ -5,7 +5,6 @@ logger = getLogger(__name__)
 
 def load_best_model_weight(model):
     """
-
     :param chess_zero.agent.model.ChessModel model:
     :return:
     """

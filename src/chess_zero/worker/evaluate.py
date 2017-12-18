@@ -26,10 +26,10 @@ class EvaluateWorker:
         :param config:
         """
         self.config = config
-        self.best_model = None
+        self.current_model = None
 
     def start(self):
-        self.best_model = self.load_best_model()
+        self.current_model = self.load_current_model()
 
         while True:
             ng_model, model_dir = self.load_next_generation_model()
@@ -38,7 +38,7 @@ class EvaluateWorker:
             if ng_is_great:
                 logger.debug(f"New Model become best model: {model_dir}")
                 save_as_best_model(ng_model)
-                self.best_model = ng_model
+                self.current_model = ng_model
             self.remove_model(model_dir)
 
     def evaluate_model(self, ng_model):
@@ -47,12 +47,13 @@ class EvaluateWorker:
         for game_idx in range(self.config.eval.game_num):
             # ng_score := if ng_model win -> 1, lose -> 0, draw -> 0.5
             current_white = (game_idx % 2 == 0)
-            ng_score, env = self.play_game(self.best_model, ng_model, current_white)
+            ng_score, env = self.play_game(self.current_model, ng_model, current_white)
             results.append(ng_score)
             winning_rate = sum(results) / len(results)
             logger.debug(f"game {game_idx}: ng_score={ng_score:.1f} ng is {'black' if current_white else 'white'} "
                          f"{'by resign ' if env.resigned else '          '}"
-                         f"winning rate {winning_rate*100:.1f}% \n")
+                         f"winning rate {winning_rate*100:.1f}% "
+                         f"{env.board.fen()}")
             pyperclip.copy(env.board.fen())
             if results.count(0) >= self.config.eval.game_num * (1-self.config.eval.replace_rate):
                 logger.debug(f"lose count reach {results.count(0)} so give up challenge")
@@ -65,10 +66,10 @@ class EvaluateWorker:
         logger.debug(f"winning rate {winning_rate*100:.1f}%")
         return winning_rate >= self.config.eval.replace_rate
 
-    def play_game(self, best_model, ng_model, current_white):
+    def play_game(self, current_model, ng_model, current_white):
         env = ChessEnv().reset()
 
-        current_player = ChessPlayer(self.config, best_model, play_config=self.config.eval.play_config)
+        current_player = ChessPlayer(self.config, current_model, play_config=self.config.eval.play_config)
         ng_player = ChessPlayer(self.config, ng_model, play_config=self.config.eval.play_config)
         if current_white:
             white, black = current_player, ng_player
@@ -100,7 +101,7 @@ class EvaluateWorker:
             ng_score = 0.5
         return ng_score, env
 
-    def load_best_model(self):
+    def load_current_model(self):
         model = ChessModel(self.config)
         load_best_model_weight(model)
         return model

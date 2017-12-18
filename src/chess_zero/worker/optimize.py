@@ -70,7 +70,7 @@ class OptimizeWorker:
         return steps
 
     def compile_model(self):
-        self.optimizer = SGD(lr=2e-1, momentum=0.9) # Adam better?
+        self.optimizer = Adam() #SGD(lr=2e-1, momentum=0.9) # Adam better?
         losses = ['categorical_crossentropy', 'mean_squared_error'] # avoid overfit for supervised 
         self.model.model.compile(optimizer=self.optimizer, loss=losses, loss_weights=self.config.trainer.loss_weights)
 
@@ -182,7 +182,7 @@ class OptimizeWorker:
                 assert state_fen == chess.STARTING_FEN
                 env.reset()
             else:
-                env.step(next_move)
+                env.step(next_move, False)
 
             state_planes = env.canonical_input_planes()
             
@@ -195,6 +195,8 @@ class OptimizeWorker:
             policy /= np.sum(policy)
 
             #assert abs(np.sum(policy) - 1) < 1e-8
+
+            assert len(policy) == 1968
 
             state_list.append(state_planes)
             policy_list.append(policy)
