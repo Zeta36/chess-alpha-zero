@@ -32,7 +32,7 @@ class ChessModel:
 
         # (batch, channels, height, width)
         x = Conv2D(filters=mc.cnn_filter_num, kernel_size=mc.cnn_filter_size, padding="same",
-                   data_format="channels_first", kernel_regularizer=l2(mc.l2_reg))(x)
+                   data_format="channels_first", use_bias=False, kernel_regularizer=l2(mc.l2_reg))(x)
         x = BatchNormalization(axis=1)(x)
         x = Activation("relu")(x)
 
@@ -42,7 +42,7 @@ class ChessModel:
         res_out = x
         
         # for policy output
-        x = Conv2D(filters=2, kernel_size=1, data_format="channels_first", kernel_regularizer=l2(mc.l2_reg))(res_out)
+        x = Conv2D(filters=2, kernel_size=1, data_format="channels_first", use_bias=False, kernel_regularizer=l2(mc.l2_reg))(res_out)
         x = BatchNormalization(axis=1)(x)
         x = Activation("relu")(x)
         x = Flatten()(x)
@@ -50,7 +50,7 @@ class ChessModel:
         policy_out = Dense(self.config.n_labels, kernel_regularizer=l2(mc.l2_reg), activation="softmax", name="policy_out")(x)
 
         # for value output
-        x = Conv2D(filters=1, kernel_size=1, data_format="channels_first", kernel_regularizer=l2(mc.l2_reg))(res_out)
+        x = Conv2D(filters=1, kernel_size=1, data_format="channels_first", use_bias=False, kernel_regularizer=l2(mc.l2_reg))(res_out)
         x = BatchNormalization(axis=1)(x)
         x = Activation("relu")(x)
         x = Flatten()(x)
@@ -63,11 +63,11 @@ class ChessModel:
         mc = self.config.model
         in_x = x
         x = Conv2D(filters=mc.cnn_filter_num, kernel_size=mc.cnn_filter_size, padding="same",
-                   data_format="channels_first", kernel_regularizer=l2(mc.l2_reg))(x)
+                   data_format="channels_first", use_bias=False, kernel_regularizer=l2(mc.l2_reg))(x)
         x = BatchNormalization(axis=1)(x)
         x = Activation("relu")(x)
         x = Conv2D(filters=mc.cnn_filter_num, kernel_size=mc.cnn_filter_size, padding="same",
-                   data_format="channels_first", kernel_regularizer=l2(mc.l2_reg))(x)
+                   data_format="channels_first", use_bias=False, kernel_regularizer=l2(mc.l2_reg))(x)
         x = BatchNormalization(axis=1)(x)
         x = Add()([in_x, x])
         x = Activation("relu")(x)
