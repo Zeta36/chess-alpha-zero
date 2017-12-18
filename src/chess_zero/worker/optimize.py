@@ -40,12 +40,11 @@ class OptimizeWorker:
     def training(self):
         self.compile_model()
         last_load_data_step = last_save_step = total_steps = self.config.trainer.start_total_steps
-        min_data_size_to_learn = 4.096
         self.load_play_data()
 
         while True:
-            if self.dataset_size < min_data_size_to_learn:
-                logger.info(f"dataset_size={self.dataset_size} is less than {min_data_size_to_learn}")
+            if self.dataset_size < self.config.trainer.min_data_size_to_learn:
+                logger.info(f"dataset_size={self.dataset_size} is less than {self.config.trainer.min_data_size_to_learn}")
                 sleep(60)
                 self.load_play_data()
                 continue
@@ -62,8 +61,8 @@ class OptimizeWorker:
 
     def train_epoch(self, epochs):
         tc = self.config.trainer
-        state_ary, policy_ary, z_ary = self.dataset
-        self.model.model.fit(state_ary, [policy_ary, z_ary],
+        state_ary, policy_ary, value_ary = self.dataset
+        self.model.model.fit(state_ary, [policy_ary, value_ary],
                              batch_size=tc.batch_size,
                              epochs=epochs,
                              shuffle=True)
@@ -97,16 +96,16 @@ class OptimizeWorker:
         self.model.save(config_path, weight_path)
 
     def collect_all_loaded_data(self):
-        state_ary_list, policy_ary_list, z_ary_list = [], [], []
-        for s_ary, p_ary, z_ary_ in self.loaded_data.values():
+        state_ary_list, policy_ary_list, value_ary_list = [], [], []
+        for s_ary, p_ary, value_ary_ in self.loaded_data.values():
             state_ary_list.append(s_ary)
             policy_ary_list.append(p_ary)
-            z_ary_list.append(z_ary_)
+            value_ary_list.append(value_ary_)
 
         state_ary = np.concatenate(state_ary_list)
         policy_ary = np.concatenate(policy_ary_list)
-        z_ary = np.concatenate(z_ary_list)
-        return state_ary, policy_ary, z_ary
+        value_ary = np.concatenate(value_ary_list)
+        return state_ary, policy_ary, value_ary
 
     @property
     def dataset_size(self):
@@ -165,7 +164,7 @@ class OptimizeWorker:
             del self.loaded_data[filename]
 
     @staticmethod
-    def convert_to_training_data(data, augment = True):
+    def convert_to_training_data(data):
         """
         :param data: format is SelfPlayWorker.buffer
         :return:
@@ -186,7 +185,7 @@ class OptimizeWorker:
                 env.step(next_move)
 
             state_planes = env.canonical_input_planes()
-
+            
             # assert env.check_current_planes(state_planes)
 
             side_to_move = state_fen.split(" ")[1]
@@ -195,7 +194,7 @@ class OptimizeWorker:
 
             policy /= np.sum(policy)
 
-            assert abs(np.sum(policy) - 1) < 1e-8
+            #assert abs(np.sum(policy) - 1) < 1e-8
 
             state_list.append(state_planes)
             policy_list.append(policy)

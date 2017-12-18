@@ -11,9 +11,8 @@ from keras.engine.topology import Input
 from keras.engine.training import Model
 from keras.layers.convolutional import Conv2D
 from keras.layers.core import Activation, Dense, Flatten
-from keras.layers.merge import Add, Multiply
+from keras.layers.merge import Add
 from keras.layers.normalization import BatchNormalization
-from keras.losses import mean_squared_error, categorical_crossentropy
 from keras.regularizers import l2
 
 from chess_zero.config import Config

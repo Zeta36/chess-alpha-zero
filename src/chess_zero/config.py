@@ -1,8 +1,6 @@
 import os
 import numpy as np
 
-
-
 class PlayWithHumanConfig:
     def __init__(self):
         self.simulation_num_per_move = 800
@@ -11,7 +9,7 @@ class PlayWithHumanConfig:
         self.c_puct = 3
         self.parallel_search_num = 16
         self.noise_eps = 0
-        self.change_tau_turn = 0 # start deterministic mode
+        self.tau_decay_rate = 0 # start deterministic mode
         self.resign_threshold = None
 
     def update_play_config(self, pc):

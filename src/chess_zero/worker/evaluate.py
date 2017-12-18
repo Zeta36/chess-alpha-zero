@@ -22,7 +22,6 @@ def start(config: Config):
 class EvaluateWorker:
     def __init__(self, config: Config):
         """
-
         :param config:
         """
         self.config = config

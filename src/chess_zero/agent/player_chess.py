@@ -144,7 +144,7 @@ class ChessPlayer:
                 leaf_v = self.expand_and_evaluate(env = env) 
                 return leaf_v # I'm returning everything from the POV of side to move
 
-        #assert state in self.tree
+            #assert state in self.tree
 
         # SELECT STEP
             action_t = self.select_action_q_and_u(env, is_root_node)
@@ -177,7 +177,7 @@ class ChessPlayer:
 
     #@profile
     def expand_and_evaluate(self, env) -> float:
-        """expand new leaf
+        """ expand new leaf
         this is called with state locked
         insert P(a|s), return leaf_v
         """
@@ -258,7 +258,7 @@ class ChessPlayer:
 
     def apply_temperature(self, policy, turn):
         tau = np.power(self.play_config.tau_decay_rate, turn)
-        print(tau)
+        #print(tau)
         if tau == 0:
             action = np.argmax(policy)
             ret = np.zeros(self.labels_n)
@@ -284,14 +284,6 @@ class ChessPlayer:
 
         policy /= np.sum(policy)
         return policy
-        #print(my_visitstats.sum_n)
-        # if env.turn < pc.change_tau_turn:
-        #     return var_n / (my_visitstats.sum_n + 1e-8)  # tau = 1
-        # else:
-        #     action = np.argmax(var_n)  # tau = 0
-        #     ret = np.zeros(self.labels_n)
-        #     ret[action] = 1
-        #     return ret
 
     def sl_action(self, board, action):
         env = ChessEnv().update(board)
@@ -304,7 +296,7 @@ class ChessPlayer:
         return action
 
     @staticmethod
-    def state_key(env: ChessEnv):
+    def state_key(env: ChessEnv) -> str:
         fen = env.board.fen().rsplit(' ',1) # drop the move clock
         return fen[0]
 
