@@ -144,7 +144,6 @@ class ChessPlayer:
                 leaf_p, leaf_v = self.expand_and_evaluate(env = env)
                 self.tree[state].p = leaf_p
                 return leaf_v # I'm returning everything from the POV of side to move
-
             #assert state in self.tree
 
         # SELECT STEP
@@ -176,7 +175,7 @@ class ChessPlayer:
         return leaf_v
 
     #@profile
-    def expand_and_evaluate(self, env) -> np.ndarray, float:
+    def expand_and_evaluate(self, env) -> (np.ndarray, float):
         """ expand new leaf
         this is called with state locked
         insert P(a|s), return leaf_v
