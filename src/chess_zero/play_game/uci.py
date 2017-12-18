@@ -2,7 +2,7 @@ import sys
 from logging import getLogger
 import chess
 from chess_zero.config import Config, PlayWithHumanConfig
-from chess_zero.play_game.game_model import PlayWithHuman
+from chess_zero.agent.player_chess import ChessPlayer
 from chess_zero.env.chess_env import ChessEnv
 
 logger = getLogger(__name__)
@@ -11,7 +11,7 @@ def start(config: Config):
 
     PlayWithHumanConfig().update_play_config(config.play)
 
-    chess_model = None
+    me_player = None
     env = ChessEnv().reset()
 
     while True:
@@ -22,8 +22,8 @@ def start(config: Config):
             print("id author ChessZero")
             print("uciok")
         elif words[0]=="isready":
-            if(chess_model == None):
-                chess_model = PlayWithHuman(config)
+            if not me_player:
+                me_player = get_player(config)
             print("readyok")
         elif words[0]=="ucinewgame":
             env.reset()
@@ -34,22 +34,32 @@ def start(config: Config):
             else:
                 fen = words[0]
                 for _ in range(5):
-                    words=words[1].split(' ',1)
-                    fen += " "+words[0]
+                    words = words[1].split(' ',1)
+                    fen += " " + words[0]
                 env.update(fen)
-                print(ChessEnv.maybe_flip_fen(fen,True))
-            if(len(words)>1):
-                words=words[1].split(" ",1)
+                #print(ChessEnv.maybe_flip_fen(fen,True))
+            if len(words):
+                words = words[1].split(" ",1)
                 if words[0]=="moves":
                     for w in words[1].split(" "):
-                        env.step(w,False)
+                        env.step(w, False)
         elif words[0]=="go":
-            action = chess_model.move_by_ai(env)
+            if not me_player:
+                me_player = get_player(config)
+            action = me_player.action(env, False)
             print(f"bestmove {action}")
         elif words[0]=="stop":
             pass #lol
         elif words[0]=="quit":
             break
+
+def get_player(config):
+    from chess_zero.agent.model_chess import ChessModel
+    from chess_zero.lib.model_helper import load_best_model_weight
+    model = ChessModel(config)
+    if not load_best_model_weight(model):
+        raise RuntimeError("Best model not found!")
+    return ChessPlayer(config, model)
 
 def info(depth,move, score):
     print(f"info score cp {int(score*100)} depth {depth} pv {move}")

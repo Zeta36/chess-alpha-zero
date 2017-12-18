@@ -38,7 +38,7 @@ class PlayWithHuman:
 
         # self.last_history = self.ai.ask_thought_about(env.observation)
         # self.last_evaluation = self.last_history.values[self.last_history.action]
-        logger.debug(f"Evaluation by AI = {self.last_evaluation}")
+        # logger.debug(f"Evaluation by AI = {self.last_evaluation}")
 
         return action
 

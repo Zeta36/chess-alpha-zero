@@ -22,7 +22,7 @@ class PlayWithHumanConfig:
         pc.logging_thinking = self.logging_thinking
         pc.c_puct = self.c_puct
         pc.noise_eps = self.noise_eps
-        pc.change_tau_turn = self.change_tau_turn
+        pc.tau_decay_rate = self.tau_decay_rate
         pc.parallel_search_num = self.parallel_search_num
         pc.resign_threshold = self.resign_threshold
 

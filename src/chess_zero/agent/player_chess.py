@@ -95,7 +95,7 @@ class ChessPlayer:
         finally:
             self.is_thinking = False
         # prediction_worker.join()
-        print(root_value)
+        #print(root_value)
         #self.deboog(env)
         if can_stop and self.play_config.resign_threshold is not None and \
                         root_value <= self.play_config.resign_threshold \
@@ -122,7 +122,7 @@ class ChessPlayer:
 
         return float(np.max([f.result() for f in futures]))
 
-    @profile
+    #@profile
     def search_my_move(self, env: ChessEnv, is_root_node=False) -> float:
         """
         Q, V is value for this Player(always white).
