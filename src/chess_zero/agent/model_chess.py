@@ -48,6 +48,7 @@ class ChessModel:
         x = Flatten()(x)
         # no output for 'pass'
         policy_out = Dense(self.config.n_labels, kernel_regularizer=l2(mc.l2_reg), activation="softmax", name="policy_out")(x)
+        
 
         # for value output
         x = Conv2D(filters=1, kernel_size=1, data_format="channels_first", use_bias=False, kernel_regularizer=l2(mc.l2_reg))(res_out)
