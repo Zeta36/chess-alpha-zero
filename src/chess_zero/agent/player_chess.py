@@ -120,7 +120,7 @@ class ChessPlayer:
             for _ in range(self.play_config.simulation_num_per_move):
                 futures.append(executor.submit(self.search_my_move,env=env.copy(),is_root_node=True))
 
-        return np.max([f.result() for f in futures])
+        return float(np.max([f.result() for f in futures]))
 
     @profile
     def search_my_move(self, env: ChessEnv, is_root_node=False) -> float:
@@ -176,7 +176,7 @@ class ChessPlayer:
 
     #@profile
     def expand_and_evaluate(self, env) -> (np.ndarray, float):
-        """ expand new leaf
+        """ expand new leaf, this is called only once per state
         this is called with state locked
         insert P(a|s), return leaf_v
         """

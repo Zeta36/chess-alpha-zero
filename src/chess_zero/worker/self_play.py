@@ -11,6 +11,7 @@ from chess_zero.lib.data_helper import get_game_data_filenames, write_game_data_
 from chess_zero.lib.model_helper import load_best_model_weight, save_as_best_model, \
     reload_best_model_weight_if_changed
 import numpy as np
+import pyperclip
 
 logger = getLogger(__name__)
 
@@ -48,8 +49,8 @@ class SelfPlayWorker:
             end_time = time()
             logger.debug(f"game {self.idx:3} time={end_time - start_time:2.0f}s "
                          f"halfmoves={env.turn:2} {env.winner:12} "
-                         f"{'by resign ' if env.resigned else '          '}"
-                         f"{env.observation.rsplit(' ',4)[0]}")
+                         f"{'by resign ' if env.resigned else '          '}")
+            pyperclip.copy(env.board.fen())
             if (self.idx % self.config.play_data.nb_game_in_file) == 0:
                 reload_best_model_weight_if_changed(self.model)
             self.idx += 1

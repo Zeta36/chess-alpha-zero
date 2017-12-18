@@ -10,6 +10,7 @@ from chess_zero.env.chess_env import ChessEnv, Winner
 from chess_zero.lib import tf_util
 from chess_zero.lib.data_helper import get_next_generation_model_dirs
 from chess_zero.lib.model_helper import save_as_best_model, load_best_model_weight
+import pyperclip
 
 logger = getLogger(__name__)
 
@@ -51,8 +52,8 @@ class EvaluateWorker:
             winning_rate = sum(results) / len(results)
             logger.debug(f"game {game_idx}: ng_score={ng_score:.1f} ng is {'black' if current_white else 'white'} "
                          f"{'by resign ' if env.resigned else '          '}"
-                         f"winning rate {winning_rate*100:.1f}% \n"
-                         f"{env.board.fen()}")
+                         f"winning rate {winning_rate*100:.1f}% \n")
+            pyperclip.copy(env.board.fen())
             if results.count(0) >= self.config.eval.game_num * (1-self.config.eval.replace_rate):
                 logger.debug(f"lose count reach {results.count(0)} so give up challenge")
                 break

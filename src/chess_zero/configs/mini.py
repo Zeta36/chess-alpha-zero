@@ -35,7 +35,7 @@ class PlayConfig:
         self.prediction_worker_sleep_sec = 0.001
         self.resign_threshold = -0.8
         self.min_resign_turn = 5
-        self.max_game_length = 50
+        self.max_game_length = 1000
 
 
 class TrainerConfig:
