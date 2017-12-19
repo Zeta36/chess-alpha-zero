@@ -33,8 +33,8 @@ class ChessModelAPI:
 				else:
 					time.sleep(0.001)
 
-	def please(self, item: QueueItem):
+	def please(self, input_planes):
 		# assert x.ndim == 4
 		# assert x.shape[1:] == (101, 8, 8)
-		return 
+		return self.executor.submit()
 		self.prediction_queue.put(x)
