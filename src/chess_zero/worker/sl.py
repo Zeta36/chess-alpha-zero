@@ -12,6 +12,7 @@ from chess_zero.lib.data_helper import get_game_data_filenames, write_game_data_
 from concurrent.futures import ProcessPoolExecutor
 import random
 from threading import Thread    
+from collections import deque
 
 logger = getLogger(__name__)
 
@@ -57,21 +58,20 @@ class SupervisedLearningWorker:
     def read_all_files(self):
         files = find_pgn_files(self.config.resource.play_data_dir)
         print (files)
-        futures = []
-        for filename in files:
-            futures.extend(self.read_file(filename))
-        return futures
+        from itertools import chain
+        return chain.from_iterable(self.read_file(filename) for filename in files)
 
     def read_file(self,filename):
         pgn = open(filename, errors='ignore')
 
-        futures = []
+        futures = deque()
         for offset in chess.pgn.scan_offsets(pgn):
             pgn.seek(offset)
             game = chess.pgn.read_game(pgn)
             futures.append(self.executor.submit(get_buffer,game,self.config))
 
-        return futures
+        while futures: 
+            yield futures.popleft() # no more memleak
 
     def save_data(self, data):
         self.buffer += data
@@ -105,7 +105,7 @@ def get_buffer(game, config) -> (ChessEnv, list):
             action = black.sl_action(observation, actions[k])
         else:
             action = white.sl_action(observation, actions[k])
-        board, info = env.step(action)
+        board, info = env.step(action, False)
         observation = board.fen()
         k += 1
 
