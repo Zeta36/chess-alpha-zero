@@ -24,7 +24,6 @@ def start(config: Config):
 class SelfPlayWorker:
     def __init__(self, config: Config, env=None, model=None):
         """
-
         :param config:
         :param ChessEnv|None env:
         :param chess_zero.agent.model_chess.ChessModel|None model:

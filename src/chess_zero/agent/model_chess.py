@@ -106,6 +106,7 @@ class ChessModel:
             self.graph = get_default_graph()
             self.digest = self.fetch_digest(weight_path)
             logger.debug(f"loaded model digest = {self.digest}")
+            #print(self.model.summary)
             return True
         else:
             logger.debug(f"model files does not exist at {config_path} and {weight_path}")

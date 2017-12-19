@@ -9,9 +9,9 @@ from chess_zero.config import Config
 from chess_zero.env.chess_env import ChessEnv, Winner
 from chess_zero.lib import tf_util
 from chess_zero.lib.data_helper import get_game_data_filenames, write_game_data_to_file, find_pgn_files
-from threading import Thread
-
+from concurrent.futures import ProcessPoolExecutor
 import random
+from threading import Thread    
 
 logger = getLogger(__name__)
 
@@ -34,13 +34,16 @@ class SupervisedLearningWorker:
         self.black = None  # type: ChessPlayer
         self.white = None  # type: ChessPlayer
         self.buffer = []
+        self.executor = ProcessPoolExecutor(max_workers=5)
 
     def start(self):
         self.buffer = []
         self.idx = 1
         start_time = time()
 
-        for env in self.read_all_files():
+        for res in self.read_all_files():
+            env, data = res.result()
+            self.save_data(data)
             end_time = time()
             logger.debug(f"game {self.idx:4} time={(end_time - start_time):.3f}s "
                          f"halfmoves={env.turn} {env.winner:12}"
@@ -54,51 +57,81 @@ class SupervisedLearningWorker:
     def read_all_files(self):
         files = find_pgn_files(self.config.resource.play_data_dir)
         print (files)
-        from itertools import chain
-        return chain.from_iterable(self.read_file(filename) for filename in files)
-
+        futures = []
+        for filename in files:
+            futures.extend(self.read_file(filename))
+        return futures
 
     def read_file(self,filename):
         pgn = open(filename, errors='ignore')
-        for offset, header in chess.pgn.scan_headers(pgn):
+
+        futures = []
+        for offset in chess.pgn.scan_offsets(pgn):
             pgn.seek(offset)
             game = chess.pgn.read_game(pgn)
-            yield self.add_to_buffer(game)
+            futures.append(self.executor.submit(get_buffer,game,self.config))
+
+        return futures
+
+    def save_data(self, data):
+        self.buffer += data
+        if self.idx % self.config.play_data.sl_nb_game_in_file == 0:
+            self.flush_buffer()
+
+    def flush_buffer(self):
+        rc = self.config.resource
+        game_id = datetime.now().strftime("%Y%m%d-%H%M%S.%f")
+        path = os.path.join(rc.play_data_dir, rc.play_data_filename_tmpl % game_id)
+        logger.info(f"save play data to {path}")
+        #print(self.buffer)
+        thread = Thread(target = write_game_data_to_file, args=(path,self.buffer))
+        thread.start()
+        self.buffer = []
 
 
-    def add_to_buffer(self,game):
-        self.env.reset()
-        self.black = ChessPlayer(self.config)
-        self.white = ChessPlayer(self.config)
-        result = game.headers["Result"]
-        actions = []
-        while not game.is_end():
-            game = game.variation(0)
-            actions.append(game.move.uci())
-        k = 0
-        observation = self.env.observation
-        while not self.env.done and k < len(actions):
-            if self.env.board.turn == chess.BLACK:
-                action = self.black.sl_action(observation, actions[k])
-            else:
-                action = self.white.sl_action(observation, actions[k])
-            board, info = self.env.step(action)
-            observation = board.fen()
-            k += 1
-
-        self.env.done = True
-        if not self.env.board.is_game_over() and result != '1/2-1/2':
-            self.env.resigned = True
-        if result == '1-0':
-            self.env.winner = Winner.white
-        elif result == '0-1':
-            self.env.winner = Winner.black
+def get_buffer(game, config) -> (ChessEnv, list):
+    env = ChessEnv().reset()
+    black = ChessPlayer(config)
+    white = ChessPlayer(config)
+    result = game.headers["Result"]
+    actions = []
+    while not game.is_end():
+        game = game.variation(0)
+        actions.append(game.move.uci())
+    k = 0
+    observation = env.observation
+    while not env.done and k < len(actions):
+        if env.board.turn == chess.BLACK:
+            action = black.sl_action(observation, actions[k])
         else:
-            self.env.winner = Winner.draw
+            action = white.sl_action(observation, actions[k])
+        board, info = env.step(action)
+        observation = board.fen()
+        k += 1
 
-        self.finish_game()
-        self.save_play_data()
-        return self.env
+    env.done = True
+    if not env.board.is_game_over() and result != '1/2-1/2':
+        env.resigned = True
+    if result == '1-0':
+        env.winner = Winner.white
+        black_win = -1
+    elif result == '0-1':
+        env.winner = Winner.black
+        black_win = 1
+    else:
+        env.winner = Winner.draw
+        black_win = 0
+
+    black.finish_game(black_win)
+    white.finish_game(-black_win)
+
+    data = []
+    for i in range(len(white.moves)):
+        data.append(white.moves[i])
+        if i < len(black.moves):
+            data.append(black.moves[i])
+
+    return env, data
 
     # def read_game(self, idx):
         # self.env.reset()
@@ -137,31 +170,18 @@ class SupervisedLearningWorker:
         #     self.remove_play_data()
         # return self.env
 
-    def save_play_data(self):
+    # def get_play_data(self):
+    #     data = []
 
-        data = []
+    #     for i in range(len(self.white.moves)):
+    #         data.append(self.white.moves[i])
+    #         if i < len(self.black.moves):
+    #             data.append(self.black.moves[i])
+    #     return data
+        # self.buffer += data
 
-        for i in range(len(self.white.moves)):
-            data.append(self.white.moves[i])
-            if i < len(self.black.moves):
-                data.append(self.black.moves[i])
-        self.buffer += data
-
-        if self.idx % self.config.play_data.sl_nb_game_in_file == 0:
-            self.flush_buffer()
-
-    def flush_buffer(self):
-        rc = self.config.resource
-        game_id = datetime.now().strftime("%Y%m%d-%H%M%S.%f")
-        path = os.path.join(rc.play_data_dir, rc.play_data_filename_tmpl % game_id)
-        logger.info(f"save play data to {path}")
-        #print(self.buffer)
-        thread = Thread(target = write_game_data_to_file, args=(path,(self.buffer)))
-        thread.start()
-        self.buffer = []
-
-    def generate_eval(self, n):
-        return
+        # if self.idx % self.config.play_data.sl_nb_game_in_file == 0:
+        #     self.flush_buffer()
 
     # def remove_play_data(self):
     #     files = get_game_data_filenames(self.config.resource)
@@ -170,13 +190,13 @@ class SupervisedLearningWorker:
     #     for i in range(len(files) - self.config.play_data.max_file_num):
     #         os.remove(files[i])
 
-    def finish_game(self):
-        if self.env.winner == Winner.black:
-            black_win = 1
-        elif self.env.winner == Winner.white:
-            black_win = -1
-        else:
-            black_win = 0
+    # def finish_game(self):
+    #     if self.env.winner == Winner.black:
+    #         black_win = 1
+    #     elif self.env.winner == Winner.white:
+    #         black_win = -1
+    #     else:
+    #         black_win = 0
 
-        self.black.finish_game(black_win)
-        self.white.finish_game(-black_win)
+    #     self.black.finish_game(black_win)
+    #     self.white.finish_game(-black_win)
