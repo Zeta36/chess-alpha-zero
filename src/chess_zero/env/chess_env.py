@@ -95,7 +95,7 @@ class ChessEnv:
         self.winner = Winner.draw
 
     def testeval(self, absolute = False) -> float:
-        piecevals = {'K': 0, 'Q': 9, 'R':5,'B':3.25,'N':3,'P':1} # K is always on board....
+        piecevals = {'K': 3, 'Q': 9, 'R': 5,'B': 3.25,'N': 3,'P': 1} # K is always on board....
         ans = 0.0
         tot = 0
         for c in self.board.fen().split(' ')[0]:
@@ -112,7 +112,7 @@ class ChessEnv:
         if not absolute and self.board.turn == chess.BLACK:
             v = -v
         assert abs(v) <= 1
-        return v
+        return np.tanh(v * 3) # arbitrary
 
     def canonical_input_planes(self):
         current_player = self.board.fen().split(" ")[1]

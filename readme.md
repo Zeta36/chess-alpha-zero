@@ -115,7 +115,7 @@ Setup
 pip install -r requirements.txt
 ```
 
-If you want use GPU,
+If you want to use GPU,
 
 ```bash
 pip install tensorflow-gpu
@@ -186,10 +186,10 @@ GPU Memory
 ----------
 
 Usually the lack of memory cause warnings, not error.
-If error happens, try to change `per_process_gpu_memory_fraction` in `src/worker/{evaluate.py,optimize.py,self_play.py}`,
+If error happens, try to change `vram_frac` in `src/configs/mini.py`,
 
 ```python
-tf_util.set_session_config(per_process_gpu_memory_fraction=0.2)
+self.vram_frac = 1.0
 ```
 
 Less batch_size will reduce memory usage of `opt`.

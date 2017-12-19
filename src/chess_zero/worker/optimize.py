@@ -3,6 +3,8 @@ from datetime import datetime
 from logging import getLogger
 from time import sleep
 
+from profilehooks import profile
+
 import keras.backend as k
 import numpy as np
 from keras.optimizers import SGD, Adam
@@ -51,9 +53,9 @@ class OptimizeWorker:
             #self.update_learning_rate(total_steps)
             steps = self.train_epoch(self.config.trainer.epoch_to_checkpoint)
             total_steps += steps
-            if last_save_step + self.config.trainer.save_model_steps < total_steps:
-                self.save_current_model()
-                last_save_step = total_steps
+            #if last_save_step + self.config.trainer.save_model_steps < total_steps:
+            self.save_current_model()
+            last_save_step = total_steps
 
             if last_load_data_step + self.config.trainer.load_data_steps < total_steps:
                 self.load_play_data()
@@ -70,7 +72,7 @@ class OptimizeWorker:
         return steps
 
     def compile_model(self):
-        self.optimizer = Adam() #SGD(lr=2e-1, momentum=0.9) # Adam better?
+        self.optimizer = SGD(lr=2e-1, momentum=0.9) # Adam better?
         losses = ['categorical_crossentropy', 'mean_squared_error'] # avoid overfit for supervised 
         self.model.model.compile(optimizer=self.optimizer, loss=losses, loss_weights=self.config.trainer.loss_weights)
 
@@ -200,6 +202,7 @@ class OptimizeWorker:
 
         return np.array(state_list), np.array(policy_list), np.array(value_list)
 
+    @profile
     @staticmethod
     def convert_to_cheating_data(data):
         """
@@ -221,8 +224,8 @@ class OptimizeWorker:
             else:
                 env.step(next_move, False)
 
+
             state_planes = env.canonical_input_planes()
-            
             # assert env.check_current_planes(state_planes)
 
             side_to_move = state_fen.split(" ")[1]

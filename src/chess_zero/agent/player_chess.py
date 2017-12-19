@@ -60,6 +60,7 @@ class ChessPlayer:
         self.prediction_queue = []
 
     def deboog(self, env):
+        print
         print(env.testeval())
         
         state = self.state_key(env)
@@ -89,17 +90,17 @@ class ChessPlayer:
         prediction_worker.start()
         try:
             for tl in range(self.play_config.thinking_loop):
-                root_value = self.search_moves(env)
+                root_value, naked_value = self.search_moves(env)
                 policy = self.calc_policy(env)
                 action = int(np.random.choice(range(self.labels_n), p = self.apply_temperature(policy, env.turn)))
         finally:
             self.is_thinking = False
         # prediction_worker.join()
-        #print(root_value)
-        #self.deboog(env)
+        print(naked_value)
+        self.deboog(env)
         if can_stop and self.play_config.resign_threshold is not None and \
                         root_value <= self.play_config.resign_threshold \
-                        and self.play_config.min_resign_turn < env.turn:
+                        and env.turn > self.play_config.min_resign_turn:
             return None
         else:
             self.moves.append([env.observation, list(policy)])
@@ -109,7 +110,7 @@ class ChessPlayer:
         return self.thinking_history.get(board)
 
     #@profile
-    def search_moves(self, env) -> float:
+    def search_moves(self, env) -> (float,float):
         # if ChessPlayer.dot == False:
         #     import stacktracer
         #     stacktracer.trace_start("trace.html")
@@ -120,7 +121,9 @@ class ChessPlayer:
             for _ in range(self.play_config.simulation_num_per_move):
                 futures.append(executor.submit(self.search_my_move,env=env.copy(),is_root_node=True))
 
-        return float(np.max([f.result() for f in futures]))
+        vals = [f.result() for f in futures]
+
+        return np.max(vals), vals[0]
 
     #@profile
     def search_my_move(self, env: ChessEnv, is_root_node=False) -> float:
@@ -201,7 +204,7 @@ class ChessPlayer:
                 data = np.array([x.state for x in item_list])
                 policy_ary, value_ary = self.api.predict(data)
                 for item, p, v in zip(item_list, policy_ary, value_ary):
-                    item.future.set_result((p, v))
+                    item.future.set_result((p, float(v)))
             else:
                 time.sleep(self.play_config.prediction_worker_sleep_sec)
 
@@ -251,8 +254,8 @@ class ChessPlayer:
         return best_a
 
     def apply_temperature(self, policy, turn):
-        tau = np.power(self.play_config.tau_decay_rate, turn)
-        #print(tau)
+        tau = np.power(self.play_config.tau_decay_rate, turn + 1)
+#        print(tau)
         if tau == 0:
             action = np.argmax(policy)
             ret = np.zeros(self.labels_n)
@@ -268,7 +271,6 @@ class ChessPlayer:
         :return:
         """
         pc = self.play_config
-        tau = np.power(self.play_config.tau_decay_rate,env.turn)
 
         state = self.state_key(env)
         my_visitstats = self.tree[state]

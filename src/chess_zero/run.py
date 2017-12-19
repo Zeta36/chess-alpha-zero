@@ -1,9 +1,5 @@
 import os
 import sys
-from dotenv import load_dotenv, find_dotenv
-
-if find_dotenv():
-    load_dotenv(find_dotenv())
 
 _PATH_ = os.path.dirname(os.path.dirname(__file__))
 

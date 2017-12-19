@@ -30,7 +30,7 @@ class PlayConfig:
         self.noise_eps = 0.25
         self.dirichlet_alpha = 0.3
         self.tau_decay_rate = 0.99
-        self.virtual_loss = 2
+        self.virtual_loss = 3
         self.parallel_search_num = 16
         self.prediction_worker_sleep_sec = 0.001
         self.resign_threshold = -0.8
@@ -47,7 +47,7 @@ class TrainerConfig:
         self.start_total_steps = 0
         self.save_model_steps = 25
         self.load_data_steps = 100
-        self.loss_weights = [0.02, 1.0] # [policy, value] prevent value overfit in SL
+        self.loss_weights = [0.5, 1.0] # [policy, value] prevent value overfit in SL
 
 
 class ModelConfig:
