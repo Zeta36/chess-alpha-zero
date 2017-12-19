@@ -4,6 +4,7 @@ from logging import getLogger
 from time import time
 import chess
 from chess_zero.agent.player_chess import ChessPlayer
+from chess_zero.agent.api_chess import ChessModelAPI
 from chess_zero.config import Config
 from chess_zero.env.chess_env import ChessEnv, Winner
 from chess_zero.lib import tf_util
@@ -17,28 +18,41 @@ logger = getLogger(__name__)
 
 
 def start(config: Config):
-    tf_util.set_session_config(config.play.vram_frac)
-    return SelfPlayWorker(config, env=ChessEnv()).start()
+    #tf_util.set_session_config(config.play.vram_frac)
+    cmodel = load_model(config)
+    api = ChessModelAPI(config, cmodel) # only ever make one of these
+    pq = api.prediction_queue
 
+    with ProcessPoolExecutor(max_workers=config.max_processes) as executor:
+        for _ in range(config.max_processes):
+            executor.submit(startone,config,pq)
+
+def load_model(config) -> ChessModel:
+    from chess_zero.agent.model_chess import ChessModel
+    model = ChessModel(config)
+    if config.opts.new or not load_best_model_weight(model):
+        model.build()
+        save_as_best_model(model)
+    return model
+
+def startone(config, pq):
+    SelfPlayWorker(config,pq).start()
 
 class SelfPlayWorker:
-    def __init__(self, config: Config, env=None, model=None):
+    def __init__(self, config: Config, pq: ChessModelAPI):
         """
-
         :param config:
         :param ChessEnv|None env:
         :param chess_zero.agent.model_chess.ChessModel|None model:
         """
         self.config = config
-        self.model = model
-        self.env = env     # type: ChessEnv
+        self.prediction_queue = pq
+        self.env = None
         self.black = None  # type: ChessPlayer
         self.white = None  # type: ChessPlayer
         self.buffer = []
 
     def start(self):
-        if self.model is None:
-            self.model = self.load_model()
 
         self.buffer = []
         self.idx = 1
@@ -57,8 +71,8 @@ class SelfPlayWorker:
 
     def start_game(self, idx):
         self.env.reset()
-        self.black = ChessPlayer(self.config, self.model)
-        self.white = ChessPlayer(self.config, self.model)
+        self.black = ChessPlayer(self.config, self.prediction_queue)
+        self.white = ChessPlayer(self.config, self.prediction_queue)
         while not self.env.done:
             if self.env.turn >= self.config.play.max_game_length:
                 self.env.adjudicate()
@@ -75,7 +89,6 @@ class SelfPlayWorker:
         return self.env
 
     def save_play_data(self, write=True):
-
         data = []
 
         for i in range(len(self.white.moves)):
@@ -112,11 +125,3 @@ class SelfPlayWorker:
 
         self.black.finish_game(black_win)
         self.white.finish_game(-black_win)
-
-    def load_model(self):
-        from chess_zero.agent.model_chess import ChessModel
-        model = ChessModel(self.config)
-        if self.config.opts.new or not load_best_model_weight(model):
-            model.build()
-            save_as_best_model(model)
-        return model
