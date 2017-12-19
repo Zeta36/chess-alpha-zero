@@ -97,10 +97,6 @@ class OptimizeWorker:
 
     def collect_all_loaded_data(self):
         state_ary, policy_ary, value_ary = zip(*self.loaded_data.values())
-        # for states, policies, values in self.loaded_data.values():
-        #     state_ary.extend(states)
-        #     policy_ary.extend(policies)
-        #     value_ary.extend(values)
 
         state_ary = np.concatenate(state_ary)
         policy_ary = np.concatenate(policy_ary)
@@ -218,7 +214,6 @@ class OptimizeWorker:
             move_number = int(state_fen.split(' ')[5])
             # f2 = ChessEnv.maybe_flip_fen(ChessEnv.maybe_flip_fen(state_fen,True),True)
             # assert state_fen == f2
-            value = env.testeval() # LOL
             next_move = env.deltamove(state_fen)
             if next_move == None: # new game!
                 assert state_fen == chess.STARTING_FEN
@@ -239,6 +234,8 @@ class OptimizeWorker:
             #assert abs(np.sum(policy) - 1) < 1e-8
 
             assert len(policy) == 1968
+            
+            value = env.testeval() # LOL
 
             state_list.append(state_planes)
             policy_list.append(policy)

@@ -47,7 +47,7 @@ class TrainerConfig:
         self.start_total_steps = 0
         self.save_model_steps = 25
         self.load_data_steps = 100
-        self.loss_weights = [0.1, 1.0] # [policy, value] prevent value overfit in SL
+        self.loss_weights = [0.02, 1.0] # [policy, value] prevent value overfit in SL
 
 
 class ModelConfig:
