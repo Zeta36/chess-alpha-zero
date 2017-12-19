@@ -23,12 +23,12 @@ class ChessModelAPI:
 		with self.agent_model.graph.as_default():
 			while True:
 				if q.qsize() > 0:
-					item_list = [q.get() for _ in q.qsize()]
+					data, futures = zip(*[q.get() for _ in q.qsize()])
 					#logger.debug(f"predicting {len(item_list)} items")
-					data = np.array([x.state for x in item_list])
+					data = np.array(data)
 					policy_ary, value_ary = self.agent_model.model.predict_on_batch(data)
-					for item, p, v in zip(item_list, policy_ary, value_ary):
-						item.future.set_result((p, float(v)))
+					for f, p, v in zip(futures, policy_ary, value_ary):
+						f.set_result((p, float(v)))
 				else:
 					time.sleep(0.001)
 

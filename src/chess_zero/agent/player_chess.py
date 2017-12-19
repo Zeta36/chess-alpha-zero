@@ -2,6 +2,8 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from collections import defaultdict, namedtuple
 from logging import getLogger
 from threading import Thread, Lock
+from multiprocessing import Manager
+from multiprocessing.pool import AsyncResult
 
 from profilehooks import profile
 
@@ -10,12 +12,12 @@ import time
 import numpy as np
 import chess
 
-from chess_zero.agent.api_chess import ChessModelAPI
+from chess_zero.agent.api_chess import ChessModelAPI, QueueItem
 from chess_zero.config import Config
 from chess_zero.env.chess_env import ChessEnv, Winner
 #from chess_zero.play_game.uci import info
 
-QueueItem = namedtuple("QueueItem", "state future")
+# QueueItem = namedtuple("QueueItem", "state future")
 HistoryItem = namedtuple("HistoryItem", "action policy values visit")
 
 logger = getLogger(__name__)
@@ -105,18 +107,19 @@ class ChessPlayer:
 		return self.thinking_history.get(board)
 
 	#@profile
-	def search_moves(self, env) -> (float,float):
+	def search_moves(self, env) -> (float, float):
 		# if ChessPlayer.dot == False:
 		#     import stacktracer
 		#     stacktracer.trace_start("trace.html")
 		#     ChessPlayer.dot = True
 
-		futures = []
-		with ThreadPoolExecutor(max_workers=self.play_config.parallel_search_num) as executor:
-			for _ in range(self.play_config.simulation_num_per_move):
-				futures.append(executor.submit(self.search_my_move,env=env.copy(),is_root_node=True))
+		# futures = []
+		# with ThreadPoolExecutor(max_workers=self.play_config.parallel_search_num) as executor:
+		# 	for _ in range(self.play_config.simulation_num_per_move):
+		# 		futures.append(executor.submit(self.search_my_move,env=env.copy(),is_root_node=True))
 
-		vals = [f.result() for f in futures]
+		# vals = [f.result() for f in futures]
+		vals=[self.search_my_move(env.copy(),True) for _ in range(self.play_config.simulation_num_per_move)]
 
 		return np.max(vals), vals[0]
 
@@ -204,9 +207,10 @@ class ChessPlayer:
 	#             time.sleep(self.play_config.prediction_worker_sleep_sec)
 
 	def predict(self, statex):
+		res = AsyncResult()
 		future = Future()
-		item = QueueItem(statex, future)
-		self.prediction_queue.put(item)
+		# item = QueueItem(statex, future)
+		self.prediction_queue.put((statex,res))
 		return future.result()
 
 	#@profile

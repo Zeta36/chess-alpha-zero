@@ -13,6 +13,7 @@ from chess_zero.lib import tf_util
 from chess_zero.lib.data_helper import get_game_data_filenames, write_game_data_to_file
 from chess_zero.lib.model_helper import load_best_model_weight, save_as_best_model, \
     reload_best_model_weight_if_changed
+
 import numpy as np
 import pyperclip
 
