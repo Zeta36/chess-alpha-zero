@@ -3,8 +3,10 @@ from datetime import datetime
 from logging import getLogger
 from time import time
 import chess
+from concurrent.futures import ProcessPoolExecutor
 from chess_zero.agent.player_chess import ChessPlayer
 from chess_zero.agent.api_chess import ChessModelAPI
+from chess_zero.agent.model_chess import ChessModel
 from chess_zero.config import Config
 from chess_zero.env.chess_env import ChessEnv, Winner
 from chess_zero.lib import tf_util
@@ -19,13 +21,17 @@ logger = getLogger(__name__)
 
 def start(config: Config):
     #tf_util.set_session_config(config.play.vram_frac)
+
     cmodel = load_model(config)
     api = ChessModelAPI(config, cmodel) # only ever make one of these
     pq = api.prediction_queue
 
-    with ProcessPoolExecutor(max_workers=config.max_processes) as executor:
-        for _ in range(config.max_processes):
-            executor.submit(startone,config,pq)
+    futures = []
+    with ProcessPoolExecutor(max_workers=config.play.max_processes) as executor:
+        for _ in range(config.play.max_processes):
+            futures.append(executor.submit(startone,config,pq))
+
+    return [f.result() for f in futures]
 
 def load_model(config) -> ChessModel:
     from chess_zero.agent.model_chess import ChessModel
@@ -39,7 +45,7 @@ def startone(config, pq):
     SelfPlayWorker(config,pq).start()
 
 class SelfPlayWorker:
-    def __init__(self, config: Config, pq: ChessModelAPI):
+    def __init__(self, config: Config, pq):
         """
         :param config:
         :param ChessEnv|None env:
@@ -47,7 +53,7 @@ class SelfPlayWorker:
         """
         self.config = config
         self.prediction_queue = pq
-        self.env = None
+        self.env = ChessEnv()
         self.black = None  # type: ChessPlayer
         self.white = None  # type: ChessPlayer
         self.buffer = []

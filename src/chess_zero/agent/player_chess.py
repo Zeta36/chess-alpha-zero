@@ -2,7 +2,6 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from collections import defaultdict, namedtuple
 from logging import getLogger
 from threading import Thread, Lock
-from multiprocessing import Queue
 
 from profilehooks import profile
 
@@ -36,7 +35,7 @@ class ActionStats:
 
 class ChessPlayer:
 	# dot = False
-	def __init__(self, config: Config, p_queue: Queue, play_config=None):
+	def __init__(self, config: Config, p_queue, play_config=None):
 
 		self.config = config
 		self.play_config = play_config or self.config.play
@@ -45,7 +44,6 @@ class ChessPlayer:
 		self.move_lookup = {k:v for k,v in zip((chess.Move.from_uci(move) for move in self.config.labels),range(len(self.config.labels)))}
 		self.labels_n = config.n_labels
 		self.labels = config.labels
-		self.prediction_queue_lock = Lock()
 		self.is_thinking = False
 
 		self.moves = []
@@ -57,7 +55,6 @@ class ChessPlayer:
 	def reset(self):
 		self.tree = defaultdict(VisitStats)
 		self.node_lock = defaultdict(Lock)
-		self.prediction_queue = []
 
 	def deboog(self, env):
 		print(env.testeval())
