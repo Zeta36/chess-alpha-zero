@@ -14,6 +14,7 @@ class ChessModelAPI:
 		self.config = config
 		self.agent_model = agent_model
 		self.prediction_queue = m.Queue()
+		self.executor = ThreadPoolExecutor(max_workers=1)
 		prediction_worker = Thread(target=self.predict_batch_worker,name="prediction_worker")
 		prediction_worker.daemon = True
 		prediction_worker.start()
@@ -35,4 +36,5 @@ class ChessModelAPI:
 	def please(self, item: QueueItem):
 		# assert x.ndim == 4
 		# assert x.shape[1:] == (101, 8, 8)
+		return 
 		self.prediction_queue.put(x)
