@@ -99,7 +99,7 @@ class Config:
 
     @staticmethod
     def flip_policy(pol):
-        return np.asarray([pol[Config.unflipped_index[i]] for i in range(Config.n_labels)])
+        return np.asarray([pol[ind] for ind in Config.unflipped_index])
 
 Config.unflipped_index = [Config.labels.index(x) for x in Config.flipped_labels]
 # print(Config.labels)

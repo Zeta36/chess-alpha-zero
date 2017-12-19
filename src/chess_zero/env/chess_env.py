@@ -11,9 +11,10 @@ logger = getLogger(__name__)
 Winner = enum.Enum("Winner", "black white draw")
 
 
+plane_order = ['K','Q','R','B','N','P','k','q','r','b','n','p']
+ind = {plane_order[i]: i for i in range(12)}
+
 class ChessEnv:
-    plane_order = ['K','Q','R','B','N','P','k','q','r','b','n','p']
-    ind = {}
 
     def __init__(self):
         self.board = None
@@ -120,8 +121,8 @@ class ChessEnv:
         return self.all_input_planes(flip)
 
     def all_input_planes(self, flip=False):
-        myboard = self.maybe_flip_fen(self.board.fen(), flip)
-        current_aux_planes = self.aux_planes(myboard)
+        myboard = maybe_flip_fen(self.board.fen(), flip)
+        current_aux_planes = aux_planes(myboard)
 
         history_both = self.black_and_white_plane(flip)
 
@@ -140,46 +141,12 @@ class ChessEnv:
                 for file in range(8):
                     if cur[i][rank][file] == 1:
                         assert fakefen[rank * 8 + file] == '1'
-                        fakefen[rank * 8 + file] = ChessEnv.plane_order[i]
+                        fakefen[rank * 8 + file] = plane_order[i]
 
         realfen = self.board.fen()
         if self.board.turn == chess.BLACK:
-            realfen = ChessEnv.maybe_flip_fen(realfen, flip=True)
-        return "".join(fakefen) == ChessEnv.replace_tags_board(realfen)
-
-
-    @staticmethod
-    def maybe_flip_fen(fen, flip = False):
-        if flip == False:
-            return fen
-        foo = fen.split(' ')
-        rows = foo[0].split('/')
-        def swapcase(a):
-            if a.isalpha():
-                return a.lower() if a.isupper() else a.upper()
-            return a
-        def swapall(aa):
-            return "".join([swapcase(a) for a in aa])
-        return "/".join( [swapall(row) for row in reversed(rows)] ) \
-            + " " + ('w' if foo[1]=='b' else 'b') \
-            + " " + "".join( sorted( swapall(foo[2]) ) ) \
-            + " " + foo[3] + " " + foo[4] + " " + foo[5]
-
-
-    @staticmethod
-    def aux_planes(fen):
-        foo = fen.split(' ')
-        castling_planes = [ np.full((8,8), int('K' in foo[2])) ]
-        castling_planes.append( np.full((8,8), int('Q' in foo[2])))
-        castling_planes.append( np.full((8,8), int('k' in foo[2])))
-        castling_planes.append( np.full((8,8), int('q' in foo[2])))
-        castling_planes = np.asarray(castling_planes)
-        assert castling_planes.shape == (4,8,8)
-        fifty_move_number = foo[4]
-        fifty_move_plane = [np.full((8, 8), int(fifty_move_number), dtype=int)]
-        ret = np.vstack((castling_planes, fifty_move_plane))
-        assert ret.shape == (5,8,8)
-        return ret
+            realfen = maybe_flip_fen(realfen, flip=True)
+        return "".join(fakefen) == replace_tags_board(realfen)
 
     def black_and_white_plane(self, flip = False):
         # flip = True applies the flip + invert color invariant transformation
@@ -189,8 +156,8 @@ class ChessEnv:
 
         # history planes
         for i in range(8):
-            board_fen = self.maybe_flip_fen(self.board.fen(),flip)
-            my_planes = self.to_planes(fen = board_fen)
+            board_fen = maybe_flip_fen(self.board.fen(),flip)
+            my_planes = to_planes(fen = board_fen)
             history_both.extend(my_planes)
             if len(self.board.move_stack) > 0:
                 history_moves.append(self.board.pop())
@@ -202,38 +169,13 @@ class ChessEnv:
         assert history_both.shape == (96, 8, 8)
         return history_both
 
-
-    @staticmethod
-    def to_planes(fen):
-        board_state = ChessEnv.replace_tags_board(fen)
-        pieces_both = np.zeros(shape = (12, 8, 8))
-        for rank in range(8):
-            for file in range(8):
-                v = board_state[rank * 8 + file]
-                if v.isalpha():
-                    pieces_both[ChessEnv.ind[v]][rank][file] = 1
-        assert pieces_both.shape == (12, 8, 8)
-        return pieces_both
-
     def copy(self):
         env = copy.copy(self)
         env.board = copy.copy(self.board)
         return env
 
-    @staticmethod
-    def replace_tags_board(board_san):
-        board_san = board_san.split(" ")[0]
-        board_san = board_san.replace("2", "11")
-        board_san = board_san.replace("3", "111")
-        board_san = board_san.replace("4", "1111")
-        board_san = board_san.replace("5", "11111")
-        board_san = board_san.replace("6", "111111")
-        board_san = board_san.replace("7", "1111111")
-        board_san = board_san.replace("8", "11111111")
-        return board_san.replace("/", "")
-
     def replace_tags(self):
-        return ChessEnv.replace_tags_board(self.board.fen())
+        return replace_tags_board(self.board.fen())
 
     def render(self):
         print("\n")
@@ -254,4 +196,54 @@ class ChessEnv:
                 return mov.uci()
         return None
 
-ChessEnv.ind = {ChessEnv.plane_order[i]: i for i in range(12)}
+def maybe_flip_fen(fen, flip = False):
+    if flip == False:
+        return fen
+    foo = fen.split(' ')
+    rows = foo[0].split('/')
+    def swapcase(a):
+        if a.isalpha():
+            return a.lower() if a.isupper() else a.upper()
+        return a
+    def swapall(aa):
+        return "".join([swapcase(a) for a in aa])
+    return "/".join( [swapall(row) for row in reversed(rows)] ) \
+        + " " + ('w' if foo[1]=='b' else 'b') \
+        + " " + "".join( sorted( swapall(foo[2]) ) ) \
+        + " " + foo[3] + " " + foo[4] + " " + foo[5]
+
+def aux_planes(fen):
+    foo = fen.split(' ')
+    castling_planes = [ np.full((8,8), int('K' in foo[2])) ]
+    castling_planes.append( np.full((8,8), int('Q' in foo[2])))
+    castling_planes.append( np.full((8,8), int('k' in foo[2])))
+    castling_planes.append( np.full((8,8), int('q' in foo[2])))
+    castling_planes = np.asarray(castling_planes)
+    assert castling_planes.shape == (4,8,8)
+    fifty_move_number = foo[4]
+    fifty_move_plane = [np.full((8, 8), int(fifty_move_number), dtype=int)]
+    ret = np.vstack((castling_planes, fifty_move_plane))
+    assert ret.shape == (5,8,8)
+    return ret
+
+def to_planes(fen):
+    board_state = replace_tags_board(fen)
+    pieces_both = np.zeros(shape = (12, 8, 8))
+    for rank in range(8):
+        for file in range(8):
+            v = board_state[rank * 8 + file]
+            if v.isalpha():
+                pieces_both[ind[v]][rank][file] = 1
+    assert pieces_both.shape == (12, 8, 8)
+    return pieces_both
+
+def replace_tags_board(board_san):
+    board_san = board_san.split(" ")[0]
+    board_san = board_san.replace("2", "11")
+    board_san = board_san.replace("3", "111")
+    board_san = board_san.replace("4", "1111")
+    board_san = board_san.replace("5", "11111")
+    board_san = board_san.replace("6", "111111")
+    board_san = board_san.replace("7", "1111111")
+    board_san = board_san.replace("8", "11111111")
+    return board_san.replace("/", "")

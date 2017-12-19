@@ -37,7 +37,7 @@ def start(config: Config):
                     words = words[1].split(' ',1)
                     fen += " " + words[0]
                 env.update(fen)
-                #print(ChessEnv.maybe_flip_fen(fen,True))
+                #print(maybe_flip_fen(fen,True))
             if len(words) > 1:
                 words = words[1].split(" ",1)
                 if words[0]=="moves":

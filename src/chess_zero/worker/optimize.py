@@ -5,9 +5,7 @@ from time import sleep
 
 from profilehooks import profile
 
-import keras.backend as k
 import numpy as np
-from keras.optimizers import SGD, Adam
 
 from chess_zero.agent.model_chess import ChessModel
 from chess_zero.config import Config
@@ -17,6 +15,7 @@ from chess_zero.lib.data_helper import get_game_data_filenames, read_game_data_f
 from chess_zero.lib.model_helper import load_best_model_weight
 from chess_zero.env.chess_env import ChessEnv
 import chess
+from concurrent.futures import ProcessPoolExecutor
 
 logger = getLogger(__name__)
 
@@ -34,6 +33,7 @@ class OptimizeWorker:
         self.loaded_data = {}
         self.dataset = None
         self.optimizer = None
+        self.executor = ProcessPoolExecutor(max_workers=config.trainer.cleaning_processes)
 
     def start(self):
         self.model = self.load_model()
@@ -72,21 +72,10 @@ class OptimizeWorker:
         return steps
 
     def compile_model(self):
-        self.optimizer = SGD(lr=2e-1, momentum=0.9) # Adam better?
+        from keras.optimizers import SGD, Adam
+        self.optimizer = Adam() #SGD(lr=2e-1, momentum=0.9) # Adam better?
         losses = ['categorical_crossentropy', 'mean_squared_error'] # avoid overfit for supervised 
         self.model.model.compile(optimizer=self.optimizer, loss=losses, loss_weights=self.config.trainer.loss_weights)
-
-    # def update_learning_rate(self, total_steps):
-    #     if total_steps < 100000:
-    #         lr = 2e-2
-    #     elif total_steps < 500000:
-    #         lr = 2e-3
-    #     elif total_steps < 900000:
-    #         lr = 2e-4
-    #     else:
-    #         lr = 2.5e-5  # means (1e-4 / 4): the paper batch size=2048, ours is 512.
-    #     k.set_value(self.optimizer.lr, lr)
-    #     logger.debug(f"total step={total_steps}, set learning rate to {lr}")
 
     def save_current_model(self):
         rc = self.config.resource
@@ -98,7 +87,7 @@ class OptimizeWorker:
         self.model.save(config_path, weight_path)
 
     def collect_all_loaded_data(self):
-        state_ary, policy_ary, value_ary = zip(*self.loaded_data.values())
+        state_ary, policy_ary, value_ary = zip(*[x.result() for x in self.loaded_data.values()])
 
         state_ary = np.concatenate(state_ary)
         policy_ary = np.concatenate(policy_ary)
@@ -150,7 +139,7 @@ class OptimizeWorker:
         # try:
         logger.debug(f"loading data from {filename}")
         data = read_game_data_from_file(filename)
-        self.loaded_data[filename] = self.convert_to_cheating_data(data) ### HEEEERE, use with SL
+        self.loaded_data[filename] = self.executor.submit(convert_to_cheating_data,data) ### HEEEERE, use with SL
         self.loaded_filenames.add(filename)
         # except Exception as e:
         #     logger.warning(str(e))
@@ -161,87 +150,86 @@ class OptimizeWorker:
         if filename in self.loaded_data:
             del self.loaded_data[filename]
 
-    @staticmethod
-    def convert_to_training_data(data):
-        """
-        :param data: format is SelfPlayWorker.buffer
-        :return:
-        """
-        state_list = []
-        policy_list = []
-        value_list = []
-        env = ChessEnv().reset()
-        for state_fen, policy, value in data:
-            move_number = int(state_fen.split(' ')[5])
-            # f2 = ChessEnv.maybe_flip_fen(ChessEnv.maybe_flip_fen(state_fen,True),True)
-            # assert state_fen == f2
-            next_move = env.deltamove(state_fen)
-            if next_move == None: # new game!
-                assert state_fen == chess.STARTING_FEN
-                env.reset()
-            else:
-                env.step(next_move, False)
+#@profile
+def convert_to_training_data(data):
+    """
+    :param data: format is SelfPlayWorker.buffer
+    :return:
+    """
+    state_list = []
+    policy_list = []
+    value_list = []
+    env = ChessEnv().reset()
+    for state_fen, policy, value in data:
+        move_number = int(state_fen.split(' ')[5])
+        # f2 = maybe_flip_fen(maybe_flip_fen(state_fen,True),True)
+        # assert state_fen == f2
+        next_move = env.deltamove(state_fen)
+        if next_move == None: # new game!
+            assert state_fen == chess.STARTING_FEN
+            env.reset()
+        else:
+            env.step(next_move, False)
 
-            state_planes = env.canonical_input_planes()
-            
-            # assert env.check_current_planes(state_planes)
+        state_planes = env.canonical_input_planes()
+        
+        # assert env.check_current_planes(state_planes)
 
-            side_to_move = state_fen.split(" ")[1]
-            if side_to_move == 'b':
-                policy = Config.flip_policy(policy)
+        side_to_move = state_fen.split(" ")[1]
+        if side_to_move == 'b':
+            policy = Config.flip_policy(policy)
 
-            policy /= np.sum(policy)
+        policy /= np.sum(policy)
 
-            #assert abs(np.sum(policy) - 1) < 1e-8
+        #assert abs(np.sum(policy) - 1) < 1e-8
 
-            assert len(policy) == 1968
+        assert len(policy) == 1968
 
-            state_list.append(state_planes)
-            policy_list.append(policy)
-            value_list.append(value)
+        state_list.append(state_planes)
+        policy_list.append(policy)
+        value_list.append(value)
 
-        return np.array(state_list), np.array(policy_list), np.array(value_list)
+    return np.array(state_list), np.array(policy_list), np.array(value_list)
 
-    @profile
-    @staticmethod
-    def convert_to_cheating_data(data):
-        """
-        :param data: format is SelfPlayWorker.buffer
-        :return:
-        """
-        state_list = []
-        policy_list = []
-        value_list = []
-        env = ChessEnv().reset()
-        for state_fen, policy, value in data:
-            move_number = int(state_fen.split(' ')[5])
-            # f2 = ChessEnv.maybe_flip_fen(ChessEnv.maybe_flip_fen(state_fen,True),True)
-            # assert state_fen == f2
-            next_move = env.deltamove(state_fen)
-            if next_move == None: # new game!
-                assert state_fen == chess.STARTING_FEN
-                env.reset()
-            else:
-                env.step(next_move, False)
+#@profile
+def convert_to_cheating_data(data):
+    """
+    :param data: format is SelfPlayWorker.buffer
+    :return:
+    """
+    state_list = []
+    policy_list = []
+    value_list = []
+    env = ChessEnv().reset()
+    for state_fen, policy, value in data:
+        move_number = int(state_fen.split(' ')[5])
+        # f2 = maybe_flip_fen(maybe_flip_fen(state_fen,True),True)
+        # assert state_fen == f2
+        next_move = env.deltamove(state_fen)
+        if next_move == None: # new game!
+            assert state_fen == chess.STARTING_FEN
+            env.reset()
+        else:
+            env.step(next_move, False)
 
 
-            state_planes = env.canonical_input_planes()
-            # assert env.check_current_planes(state_planes)
+        state_planes = env.canonical_input_planes()
+        # assert env.check_current_planes(state_planes)
 
-            side_to_move = state_fen.split(" ")[1]
-            if side_to_move == 'b':
-                policy = Config.flip_policy(policy)
+        side_to_move = state_fen.split(" ")[1]
+        if side_to_move == 'b':
+            policy = Config.flip_policy(policy)
 
-            policy /= np.sum(policy)
+        policy /= np.sum(policy)
 
-            #assert abs(np.sum(policy) - 1) < 1e-8
+        #assert abs(np.sum(policy) - 1) < 1e-8
 
-            assert len(policy) == 1968
-            
-            value = env.testeval() # LOL
+        assert len(policy) == 1968
+        
+        value = env.testeval() # LOL
 
-            state_list.append(state_planes)
-            policy_list.append(policy)
-            value_list.append(value)
+        state_list.append(state_planes)
+        policy_list.append(policy)
+        value_list.append(value)
 
-        return np.array(state_list), np.array(policy_list), np.array(value_list)
+    return np.array(state_list), np.array(policy_list), np.array(value_list)

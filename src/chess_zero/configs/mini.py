@@ -41,13 +41,14 @@ class PlayConfig:
 class TrainerConfig:
     def __init__(self):
         self.min_data_size_to_learn = 0
+        self.cleaning_processes = 8
         self.vram_frac = 1.0
         self.batch_size = 384 # tune this to your gpu memory
         self.epoch_to_checkpoint = 1
         self.start_total_steps = 0
         self.save_model_steps = 25
         self.load_data_steps = 100
-        self.loss_weights = [0.5, 1.0] # [policy, value] prevent value overfit in SL
+        self.loss_weights = [1.0, 1.0] # [policy, value] prevent value overfit in SL
 
 
 class ModelConfig:

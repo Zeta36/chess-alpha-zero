@@ -63,7 +63,7 @@ class ChessPlayer:
         print
         print(env.testeval())
         
-        state = self.state_key(env)
+        state = state_key(env)
         my_visitstats = self.tree[state]
         stats = []
         for action, a_s in my_visitstats.a.items():
@@ -82,7 +82,7 @@ class ChessPlayer:
     def action(self, env, can_stop = True) -> str:
         self.reset()
         
-        state = self.state_key(env)
+        state = state_key(env)
 
         self.is_thinking = True
         prediction_worker = Thread(target=self.predict_batch_worker,name="prediction_worker")
@@ -96,8 +96,8 @@ class ChessPlayer:
         finally:
             self.is_thinking = False
         # prediction_worker.join()
-        print(naked_value)
-        self.deboog(env)
+        #print(naked_value)
+        #self.deboog(env)
         if can_stop and self.play_config.resign_threshold is not None and \
                         root_value <= self.play_config.resign_threshold \
                         and env.turn > self.play_config.min_resign_turn:
@@ -138,7 +138,7 @@ class ChessPlayer:
             #assert (env.winner == Winner.white) != (env.board.turn == chess.WHITE) # side to move can't be winner!
             return -1
 
-        state = self.state_key(env)
+        state = state_key(env)
 
         my_lock = self.node_lock[state]
 
@@ -218,7 +218,7 @@ class ChessPlayer:
     #@profile
     def select_action_q_and_u(self, env, is_root_node) -> chess.Move:
         # this method is called with state locked
-        state = self.state_key(env)
+        state = state_key(env)
 
         my_visitstats = self.tree[state]
 
@@ -272,7 +272,7 @@ class ChessPlayer:
         """
         pc = self.play_config
 
-        state = self.state_key(env)
+        state = state_key(env)
         my_visitstats = self.tree[state]
         policy = np.zeros(self.labels_n)
         for action, a_s in my_visitstats.a.items():
@@ -291,11 +291,6 @@ class ChessPlayer:
         self.moves.append([env.observation, list(policy)])
         return action
 
-    @staticmethod
-    def state_key(env: ChessEnv) -> str:
-        fen = env.board.fen().rsplit(' ',1) # drop the move clock
-        return fen[0]
-
     def finish_game(self, z):
         """
         :param z: win=1, lose=-1, draw=0
@@ -303,3 +298,7 @@ class ChessPlayer:
         """
         for move in self.moves:  # add this game winner result to all past moves.
             move += [z]
+
+def state_key(env: ChessEnv) -> str:
+    fen = env.board.fen().rsplit(' ',1) # drop the move clock
+    return fen[0]
