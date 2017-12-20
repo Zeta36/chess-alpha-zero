@@ -2,8 +2,7 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from collections import defaultdict, namedtuple
 from logging import getLogger
 from threading import Thread, Lock
-from multiprocessing import Manager
-from multiprocessing.pool import AsyncResult
+from multiprocessing import Manager, Queue
 
 from profilehooks import profile
 
@@ -207,11 +206,10 @@ class ChessPlayer:
 	#             time.sleep(self.play_config.prediction_worker_sleep_sec)
 
 	def predict(self, statex):
-		res = AsyncResult()
-		future = Future()
+		q = Queue()
 		# item = QueueItem(statex, future)
-		self.prediction_queue.put((statex,res))
-		return future.result()
+		self.prediction_queue.put((statex,q))
+		return q.get()
 
 	#@profile
 	def select_action_q_and_u(self, env, is_root_node) -> chess.Move:
