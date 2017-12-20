@@ -7,7 +7,7 @@ from chess_zero.agent.player_chess import ChessPlayer
 from chess_zero.config import Config
 from chess_zero.env.chess_env import ChessEnv, Winner
 from chess_zero.lib import tf_util
-from chess_zero.lib.data_helper import get_next_generation_model_dirs
+from chess_zero.lib.data_helper import get_next_generation_model_dirs, prettyprint
 from chess_zero.lib.model_helper import save_as_best_model, load_best_model_weight
 import pyperclip
 
@@ -41,7 +41,6 @@ class EvaluateWorker:
             self.remove_model(model_dir)
 
     def evaluate_model(self, ng_model):
-        new_pgn = open("test.pgn","wt")
         results = []
         win_rate = 0
         for game_idx in range(self.config.eval.game_num):
@@ -54,12 +53,11 @@ class EvaluateWorker:
                          f"{'by resign ' if env.resigned else '          '}"
                          f"win_rate={win_rate*100:5.1f}% "
                          f"{env.board.fen()}")
-            game = chess.pgn.Game.from_board(env.board)
-            game.headers["White"] = "current_model" if current_white else "ng_model"
-            game.headers["Black"] = "ng_model" if current_white else "current_model"
-            new_pgn.write(str(game)+"\n\n")
-            new_pgn.flush()
-            pyperclip.copy(env.board.fen())
+            colors = ("current_model", "ng_model")
+            if not current_white:
+                colors=reversed(colors)
+
+            prettyprint(env, colors)
 
             if results.count(0) >= self.config.eval.game_num * (1-self.config.eval.replace_rate):
                 logger.debug(f"lose count reach {results.count(0)} so give up challenge")
@@ -83,10 +81,10 @@ class EvaluateWorker:
             white, black = ng_player, current_player
 
         while not env.done:
-            if env.board.turn == chess.BLACK:
-                action = black.action(env)
-            else:
+            if env.board.turn == chess.WHITE:
                 action = white.action(env)
+            else:
+                action = black.action(env)
             env.step(action)
             if env.num_halfmoves >= self.config.eval.max_game_length:
                 env.adjudicate()

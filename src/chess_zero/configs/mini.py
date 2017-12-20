@@ -6,8 +6,8 @@ class EvaluateConfig:
         self.play_config = PlayConfig()
         self.play_config.simulation_num_per_move = 100
         self.play_config.thinking_loop = 1
-        self.play_config.c_puct = 1
-        self.play_config.tau_decay_rate = 0
+        self.play_config.c_puct = 1.5
+        self.play_config.tau_decay_rate = 0.5 # I need a better distribution...
         self.play_config.noise_eps = 0
         self.evaluate_latest_first = True
         self.max_game_length = 1000

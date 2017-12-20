@@ -9,7 +9,7 @@ from chess_zero.agent.model_chess import ChessModel
 from chess_zero.config import Config
 from chess_zero.env.chess_env import ChessEnv, Winner
 from chess_zero.lib import tf_util
-from chess_zero.lib.data_helper import get_game_data_filenames, write_game_data_to_file
+from chess_zero.lib.data_helper import get_game_data_filenames, write_game_data_to_file, prettyprint
 from chess_zero.lib.model_helper import load_best_model_weight, save_as_best_model, \
     reload_best_model_weight_if_changed
 
@@ -65,12 +65,9 @@ class SelfPlayWorker:
             print(f"game {self.idx:3} time={end_time - start_time:5.1f}s "
                 f"halfmoves={env.num_halfmoves:3} {env.winner:12} "
                 f"{'by resign ' if env.resigned else '          '}")
-            game = chess.pgn.Game.from_board(env.board)
-            game.headers["White"] = "current_model"
-            game.headers["Black"] = "current_model"
-            new_pgn.write(str(game)+"\n\n")
-            new_pgn.flush()
-            pyperclip.copy(env.board.fen())
+
+            prettyprint(env, ("current_model", "current_model"))
+
             if (self.idx % self.config.play_data.nb_game_in_file) == 0:
                 reload_best_model_weight_if_changed(self.model)
             self.idx += 1
@@ -80,10 +77,10 @@ class SelfPlayWorker:
         self.black = ChessPlayer(self.config, p_queue=self.prediction_queue)
         self.white = ChessPlayer(self.config, p_queue=self.prediction_queue)
         while not self.env.done:
-            if self.env.board.turn == chess.BLACK:
-                action = self.black.action(self.env)
-            else:
+            if self.env.board.turn == chess.WHITE:
                 action = self.white.action(self.env)
+            else:
+                action = self.black.action(self.env)
             #print(action)
             self.env.step(action)
             if self.env.num_halfmoves >= self.config.play.max_game_length:

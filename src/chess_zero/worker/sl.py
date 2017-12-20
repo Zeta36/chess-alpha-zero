@@ -102,10 +102,10 @@ def get_buffer(game, config) -> (ChessEnv, list):
     k = 0
     observation = env.observation
     while not env.done and k < len(actions):
-        if env.board.turn == chess.BLACK:
-            action = black.sl_action(observation, actions[k]) #ignore=True
+        if env.board.turn == chess.WHITE:
+            action = white.sl_action(observation, actions[k]) #ignore=True
         else:
-            action = white.sl_action(observation, actions[k])
+            action = black.sl_action(observation, actions[k], ignore=True) #ignore=True
         board, info = env.step(action, False)
         observation = board.fen()
         k += 1

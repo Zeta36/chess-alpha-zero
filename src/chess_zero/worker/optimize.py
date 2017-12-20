@@ -2,6 +2,7 @@ import os
 from datetime import datetime
 from logging import getLogger
 from time import sleep
+import random
 
 from profilehooks import profile
 
@@ -182,17 +183,22 @@ def convert_to_cheating_data(data):
 
         side_to_move = state_fen.split(" ")[1]
         if side_to_move == 'b':
-            policy = Config.flip_policy(policy)
+            assert np.sum(policy) == 0
+            # policy = Config.flip_policy(policy)
+        else:
+            assert abs(np.sum(policy) - 1) < 1e-8
 
-        if np.sum(policy) != 0:
-            policy /= np.sum(policy)
+
+        # if np.sum(policy) != 0:
+        #     policy /= np.sum(policy)
 
         #assert abs(np.sum(policy) - 1) < 1e-8
 
         assert len(policy) == 1968
         assert state_planes.dtype == np.float32
         
-        value = env.testeval() # LOL
+        if random.random()<0.5:
+            value = env.testeval() # LOL
 
         state_list.append(state_planes)
         policy_list.append(policy)
