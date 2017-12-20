@@ -70,6 +70,7 @@ class SupervisedLearningWorker:
             game = chess.pgn.read_game(pgn)
             futures.append(self.executor.submit(get_buffer,game,self.config))
 
+        print(f"found {len(futures)} games")
         while futures: 
             yield futures.popleft() # no more memleak
 
@@ -102,7 +103,7 @@ def get_buffer(game, config) -> (ChessEnv, list):
     observation = env.observation
     while not env.done and k < len(actions):
         if env.board.turn == chess.BLACK:
-            action = black.sl_action(observation, actions[k])
+            action = black.sl_action(observation, actions[k]) #ignore=True
         else:
             action = white.sl_action(observation, actions[k])
         board, info = env.step(action, False)

@@ -86,7 +86,7 @@ class ChessPlayer:
 		for tl in range(self.play_config.thinking_loop):
 			root_value, naked_value = self.search_moves(env)
 			policy = self.calc_policy(env)
-			action = int(np.random.choice(range(self.labels_n), p = self.apply_temperature(policy, env.turn)))
+			action = int(np.random.choice(range(self.labels_n), p = self.apply_temperature(policy, env.num_halfmoves)))
 		#print(naked_value)
 		#self.deboog(env)
 		if can_stop and self.play_config.resign_threshold is not None and \
@@ -127,7 +127,7 @@ class ChessPlayer:
 		if env.done:
 			if env.winner == Winner.draw:
 				return 0
-			#assert (env.winner == Winner.white) != (env.board.turn == chess.WHITE) # side to move can't be winner!
+			#assert env.whitewon != (env.board.turn == chess.WHITE) # side to move can't be winner!
 			return -1
 
 		state = state_key(env)
@@ -257,10 +257,12 @@ class ChessPlayer:
 		policy /= np.sum(policy)
 		return policy
 
-	def sl_action(self, observation, action):
+	def sl_action(self, observation, action, ignore=False):
 		policy = np.zeros(self.labels_n)
-		k = self.move_lookup[chess.Move.from_uci(action)] 
-		policy[k] = 1.0
+
+		if not ignore:
+			k = self.move_lookup[chess.Move.from_uci(action)] 
+			policy[k] = 1.0
 
 		self.moves.append([observation, list(policy)])
 		return action

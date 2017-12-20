@@ -21,6 +21,7 @@ class PlayWithHumanConfig:
         pc.noise_eps = self.noise_eps
         pc.tau_decay_rate = self.tau_decay_rate
         pc.resign_threshold = self.resign_threshold
+        pc.max_game_length = 999999
 
 
 def _project_dir():

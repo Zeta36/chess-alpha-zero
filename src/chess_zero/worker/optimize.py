@@ -184,7 +184,8 @@ def convert_to_cheating_data(data):
         if side_to_move == 'b':
             policy = Config.flip_policy(policy)
 
-        policy /= np.sum(policy)
+        if np.sum(policy) != 0:
+            policy /= np.sum(policy)
 
         #assert abs(np.sum(policy) - 1) < 1e-8
 

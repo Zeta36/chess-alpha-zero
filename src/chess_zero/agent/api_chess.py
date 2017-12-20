@@ -22,7 +22,7 @@ class ChessModelAPI:
 					data.append(d)
 					result_queues.append(r)
 				#print(f"predicting {len(result_queues)} items")
-				data = np.array(data)
+				data = np.asarray(data, dtype=np.float32)
 				policy_ary, value_ary = self.agent_model.model.predict_on_batch(data)
 				for r_q, p, v in zip(result_queues, policy_ary, value_ary):
 					r_q.put((p, float(v)))

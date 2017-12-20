@@ -5,7 +5,6 @@ from time import time
 import chess
 from concurrent.futures import ProcessPoolExecutor
 from chess_zero.agent.player_chess import ChessPlayer
-from chess_zero.agent.api_chess import ChessModelAPI
 from chess_zero.agent.model_chess import ChessModel
 from chess_zero.config import Config
 from chess_zero.env.chess_env import ChessEnv, Winner
@@ -81,15 +80,14 @@ class SelfPlayWorker:
         self.black = ChessPlayer(self.config, p_queue=self.prediction_queue)
         self.white = ChessPlayer(self.config, p_queue=self.prediction_queue)
         while not self.env.done:
-            if self.env.turn >= self.config.play.max_game_length:
-                self.env.adjudicate()
-                break
             if self.env.board.turn == chess.BLACK:
                 action = self.black.action(self.env)
             else:
                 action = self.white.action(self.env)
             #print(action)
             self.env.step(action)
+            if self.env.num_halfmoves >= self.config.play.max_game_length:
+                self.env.adjudicate()
         self.finish_game()
         self.save_play_data(write=idx % self.config.play_data.nb_game_in_file == 0)
         self.remove_play_data()
