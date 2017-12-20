@@ -182,7 +182,7 @@ class ChessPlayer:
 
 	def predict(self, state_planes):
 		q = self.queue_pool.pop()
-		self.prediction_queue.put((state_planes,q))
+		self.prediction_queue.put_nowait((state_planes,q))
 		ret = q.get()
 		self.queue_pool.append(q)
 		return ret

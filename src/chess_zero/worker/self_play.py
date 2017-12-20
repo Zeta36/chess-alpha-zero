@@ -63,7 +63,7 @@ class SelfPlayWorker:
             start_time = time()
             env = self.start_game(self.idx)
             end_time = time()
-            print(f"game {self.idx:3} time={end_time - start_time:2.0f}s "
+            print(f"game {self.idx:3} time={end_time - start_time:5.1f}s "
                 f"halfmoves={env.turn:2} {env.winner:12} "
                 f"{'by resign ' if env.resigned else '          '}")
             pyperclip.copy(env.board.fen())
@@ -83,7 +83,7 @@ class SelfPlayWorker:
                 action = self.black.action(self.env)
             else:
                 action = self.white.action(self.env)
-            print(action)
+            #print(action)
             self.env.step(action)
         self.finish_game()
         self.save_play_data(write=idx % self.config.play_data.nb_game_in_file == 0)
