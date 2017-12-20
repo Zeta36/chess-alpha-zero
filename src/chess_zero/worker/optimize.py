@@ -189,6 +189,7 @@ def convert_to_cheating_data(data):
         #assert abs(np.sum(policy) - 1) < 1e-8
 
         assert len(policy) == 1968
+        assert state_planes.dtype == np.float32
         
         value = env.testeval() # LOL
 
@@ -196,4 +197,4 @@ def convert_to_cheating_data(data):
         policy_list.append(policy)
         value_list.append(value)
 
-    return np.array(state_list), np.array(policy_list), np.array(value_list)
+    return np.array(state_list, dtype=np.float32), np.array(policy_list, dtype=np.float32), np.array(value_list, dtype=np.float32)

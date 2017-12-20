@@ -40,8 +40,8 @@ def load_model(config) -> ChessModel:
         save_as_best_model(model)
     return model
 
-def startone(config, pq):
-    SelfPlayWorker(config,pq).start()
+def startone(config, p_q):
+    SelfPlayWorker(config, p_q).start()
 
 class SelfPlayWorker:
     def __init__(self, config: Config, p_q):
@@ -73,8 +73,8 @@ class SelfPlayWorker:
 
     def start_game(self, idx):
         self.env.reset()
-        self.black = ChessPlayer(self.config, self.prediction_queue)
-        self.white = ChessPlayer(self.config, self.prediction_queue)
+        self.black = ChessPlayer(self.config, p_queue=self.prediction_queue)
+        self.white = ChessPlayer(self.config, p_queue=self.prediction_queue)
         while not self.env.done:
             if self.env.turn >= self.config.play.max_game_length:
                 self.env.adjudicate()

@@ -1,6 +1,5 @@
 import os
 from logging import getLogger
-from random import random
 from time import sleep
 import chess
 from chess_zero.agent.model_chess import ChessModel
@@ -69,8 +68,8 @@ class EvaluateWorker:
     def play_game(self, current_model, ng_model, current_white: bool) -> (float, ChessEnv):
         env = ChessEnv().reset()
 
-        current_player = ChessPlayer(self.config, current_model, play_config=self.config.eval.play_config)
-        ng_player = ChessPlayer(self.config, ng_model, play_config=self.config.eval.play_config)
+        current_player = ChessPlayer(self.config, model=current_model, play_config=self.config.eval.play_config)
+        ng_player = ChessPlayer(self.config, model=ng_model, play_config=self.config.eval.play_config)
         if current_white:
             white, black = current_player, ng_player
         else:

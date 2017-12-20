@@ -1,8 +1,8 @@
-from concurrent.futures import Future, ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
 from collections import defaultdict, namedtuple
 from logging import getLogger
 from threading import Thread, Lock
-from multiprocessing import Manager, Queue
+from multiprocessing import Manager
 
 from profilehooks import profile
 
@@ -35,11 +35,14 @@ class ActionStats:
 
 class ChessPlayer:
 	# dot = False
-	def __init__(self, config: Config, p_queue: Queue, play_config=None):
+	def __init__(self, config: Config, model=None, p_queue=None, play_config=None):
 
 		self.config = config
 		self.play_config = play_config or self.config.play
-		self.prediction_queue = p_queue
+		if model:
+			self.prediction_queue = ChessModelAPI(self.config, model).prediction_queue
+		else:
+			self.prediction_queue = p_queue
 
 		self.move_lookup = {k:v for k,v in zip((chess.Move.from_uci(move) for move in self.config.labels),range(len(self.config.labels)))}
 		self.labels_n = config.n_labels

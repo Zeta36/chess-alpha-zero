@@ -214,21 +214,21 @@ def maybe_flip_fen(fen, flip = False):
 
 def aux_planes(fen):
     foo = fen.split(' ')
-    castling_planes = [ np.full((8,8), int('K' in foo[2])) ]
-    castling_planes.append( np.full((8,8), int('Q' in foo[2])))
-    castling_planes.append( np.full((8,8), int('k' in foo[2])))
-    castling_planes.append( np.full((8,8), int('q' in foo[2])))
-    castling_planes = np.asarray(castling_planes)
+    castling_planes =     [ np.full((8,8), int('K' in foo[2]), dtype=np.float32) ]
+    castling_planes.append( np.full((8,8), int('Q' in foo[2]), dtype=np.float32))
+    castling_planes.append( np.full((8,8), int('k' in foo[2]), dtype=np.float32))
+    castling_planes.append( np.full((8,8), int('q' in foo[2]), dtype=np.float32))
+    castling_planes = np.asarray(castling_planes, dtype=np.float32)
     assert castling_planes.shape == (4,8,8)
     fifty_move_number = foo[4]
-    fifty_move_plane = [np.full((8, 8), int(fifty_move_number), dtype=int)]
+    fifty_move_plane = [np.full((8, 8), int(fifty_move_number), dtype=np.float32)]
     ret = np.vstack((castling_planes, fifty_move_plane))
     assert ret.shape == (5,8,8)
     return ret
 
 def to_planes(fen):
     board_state = replace_tags_board(fen)
-    pieces_both = np.zeros(shape = (12, 8, 8),dtype=np.float32)
+    pieces_both = np.zeros(shape = (12, 8, 8), dtype=np.float32)
     for rank in range(8):
         for file in range(8):
             v = board_state[rank * 8 + file]

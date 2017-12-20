@@ -1,16 +1,14 @@
 from chess_zero.config import Config
 from multiprocessing import Manager
 from threading import Thread
-import time
 import numpy as np
-from collections import namedtuple
 
 class ChessModelAPI:
 	def __init__(self, config: Config, agent_model): # ChessModel
 		self.config = config
 		self.agent_model = agent_model
 		self.prediction_queue = Manager().Queue()
-		prediction_worker = Thread(target=self.predict_batch_worker,name="prediction_worker")
+		prediction_worker = Thread(target=self.predict_batch_worker, name="prediction_worker")
 		prediction_worker.daemon = True
 		prediction_worker.start()
 
