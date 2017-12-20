@@ -30,7 +30,7 @@ class OptimizeWorker:
         self.config = config
         self.model = None  # type: ChessModel
         self.loaded_filenames = set()
-        self.loaded_data = {}
+        self.loaded_data = [] # this should just be a ring buffer i.e. queue of length 500,000 in AZ
         self.dataset = None
         self.optimizer = None
         self.executor = ProcessPoolExecutor(max_workers=config.trainer.cleaning_processes)
@@ -57,9 +57,9 @@ class OptimizeWorker:
             self.save_current_model()
             last_save_step = total_steps
 
-            if last_load_data_step + self.config.trainer.load_data_steps < total_steps:
-                self.load_play_data()
-                last_load_data_step = total_steps
+            # if last_load_data_step + self.config.trainer.load_data_steps < total_steps:
+            #     self.load_play_data()
+            #     last_load_data_step = total_steps
 
     def train_epoch(self, epochs):
         tc = self.config.trainer
@@ -86,19 +86,37 @@ class OptimizeWorker:
         weight_path = os.path.join(model_dir, rc.next_generation_model_weight_filename)
         self.model.save(config_path, weight_path)
 
+    def load_play_data(self):
+        filenames = get_game_data_filenames(self.config.resource)
+        updated = False
+        for filename in filenames:
+            if filename in self.loaded_filenames:
+                continue
+            self.load_data_from_file(filename)
+            updated = True
+
+        # for filename in (self.loaded_filenames - set(filenames)):
+        #     self.unload_data_of_file(filename)
+        #     updated = True
+
+        if updated:
+            logger.debug("updating training dataset")
+            self.dataset = self.collect_all_loaded_data()
+
     def collect_all_loaded_data(self):
-        state_ary, policy_ary, value_ary = zip(*[x.result() for x in self.loaded_data.values()])
+        state_ary, policy_ary, value_ary = [], [], []
+        while self.loaded_data:
+            f = self.loaded_data.pop()
+            s, p, v = f.result()
+            state_ary.append(s)
+            policy_ary.append(p)
+            value_ary.append(v)
 
         state_ary = np.concatenate(state_ary)
         policy_ary = np.concatenate(policy_ary)
         value_ary = np.concatenate(value_ary)
         return state_ary, policy_ary, value_ary
 
-    @property
-    def dataset_size(self):
-        if self.dataset is None:
-            return 0
-        return len(self.dataset[0])
 
     def load_model(self):
         from chess_zero.agent.model_chess import ChessModel
@@ -118,80 +136,26 @@ class OptimizeWorker:
             model.load(config_path, weight_path)
         return model
 
-    def load_play_data(self):
-        filenames = get_game_data_filenames(self.config.resource)
-        updated = False
-        for filename in filenames:
-            if filename in self.loaded_filenames:
-                continue
-            self.load_data_from_file(filename)
-            updated = True
-
-        for filename in (self.loaded_filenames - set(filenames)):
-            self.unload_data_of_file(filename)
-            updated = True
-
-        if updated:
-            logger.debug("updating training dataset")
-            self.dataset = self.collect_all_loaded_data()
-
     def load_data_from_file(self, filename):
         # try:
         logger.debug(f"loading data from {filename}")
         data = read_game_data_from_file(filename)
-        self.loaded_data[filename] = self.executor.submit(convert_to_cheating_data,data) ### HEEEERE, use with SL
+        self.loaded_data.append( self.executor.submit(convert_to_cheating_data, data) )### HEEEERE, use with SL
         self.loaded_filenames.add(filename)
         # except Exception as e:
         #     logger.warning(str(e))
 
-    def unload_data_of_file(self, filename):
-        logger.debug(f"removing data about {filename} from training set")
-        self.loaded_filenames.remove(filename)
-        if filename in self.loaded_data:
-            del self.loaded_data[filename]
+    @property
+    def dataset_size(self):
+        if self.dataset is None:
+            return 0
+        return len(self.dataset[0])
+    # def unload_data_of_file(self, filename):
+    #     logger.debug(f"removing data about {filename} from training set")
+    #     self.loaded_filenames.remove(filename)
+    #     if filename in self.loaded_data:
+    #         del self.loaded_data[filename]
 
-#@profile
-def convert_to_training_data(data):
-    """
-    :param data: format is SelfPlayWorker.buffer
-    :return:
-    """
-    state_list = []
-    policy_list = []
-    value_list = []
-    env = ChessEnv().reset()
-    for state_fen, policy, value in data:
-        move_number = int(state_fen.split(' ')[5])
-        # f2 = maybe_flip_fen(maybe_flip_fen(state_fen,True),True)
-        # assert state_fen == f2
-        next_move = env.deltamove(state_fen)
-        if next_move == None: # new game!
-            assert state_fen == chess.STARTING_FEN
-            env.reset()
-        else:
-            env.step(next_move, False)
-
-        state_planes = env.canonical_input_planes()
-        
-        # assert env.check_current_planes(state_planes)
-
-        side_to_move = state_fen.split(" ")[1]
-        if side_to_move == 'b':
-            policy = Config.flip_policy(policy)
-
-        policy /= np.sum(policy)
-
-        #assert abs(np.sum(policy) - 1) < 1e-8
-
-        assert len(policy) == 1968
-
-        state_list.append(state_planes)
-        policy_list.append(policy)
-        value_list.append(value)
-
-    return np.array(state_list), np.array(policy_list), np.array(value_list)
-
-#@profile
 def convert_to_cheating_data(data):
     """
     :param data: format is SelfPlayWorker.buffer
