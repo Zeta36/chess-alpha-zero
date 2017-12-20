@@ -10,7 +10,6 @@ logger = getLogger(__name__)
 # noinspection PyArgumentList
 Winner = enum.Enum("Winner", "black white draw")
 
-
 plane_order = ['K','Q','R','B','N','P','k','q','r','b','n','p']
 ind = {plane_order[i]: i for i in range(12)}
 
@@ -18,14 +17,14 @@ class ChessEnv:
 
     def __init__(self):
         self.board = None
-        self.turn = 0
+        self.num_halfmoves = 0
         self.done = False
         self.winner = None  # type: Winner
         self.resigned = False
 
     def reset(self):
         self.board = chess.Board()
-        self.turn = 0
+        self.num_halfmoves = 0
         self.done = False
         self.winner = None
         self.resigned = False
@@ -38,6 +37,9 @@ class ChessEnv:
         self.resigned = False
         return self
 
+    @property
+    def whitewon(self):
+        return self.winner == Winner.white
 
     def step(self, action: str, check_over = True):
         """
@@ -50,9 +52,9 @@ class ChessEnv:
 
         self.board.push_uci(action)
 
-        self.turn += 1
+        self.num_halfmoves += 1
 
-        if check_over and self.board.is_game_over(claim_draw=True):
+        if check_over and self.board.result(claim_draw=True) != "*":
             self._game_over()
 
         return self.board, {}

@@ -22,8 +22,7 @@ logger = getLogger(__name__)
 def start(config: Config):
     #tf_util.set_session_config(config.play.vram_frac)
 
-    cmodel = load_model(config)
-    p_queue = ChessModelAPI(config, cmodel).prediction_queue # only ever make one of these
+    p_queue = load_model(config).get_api_queue()
 
     futures = []
     with ProcessPoolExecutor(max_workers=config.play.max_processes) as executor:
@@ -65,7 +64,7 @@ class SelfPlayWorker:
             env = self.start_game(self.idx)
             end_time = time()
             print(f"game {self.idx:3} time={end_time - start_time:5.1f}s "
-                f"halfmoves={env.turn:2} {env.winner:12} "
+                f"halfmoves={env.num_halfmoves:3} {env.winner:12} "
                 f"{'by resign ' if env.resigned else '          '}")
             game = chess.pgn.Game.from_board(env.board)
             game.headers["White"] = "current_model"

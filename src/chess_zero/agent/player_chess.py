@@ -11,7 +11,6 @@ import time
 import numpy as np
 import chess
 
-from chess_zero.agent.api_chess import ChessModelAPI
 from chess_zero.config import Config
 from chess_zero.env.chess_env import ChessEnv, Winner
 #from chess_zero.play_game.uci import info
@@ -47,7 +46,7 @@ class ChessPlayer:
 			return
 
 		if model:
-			self.prediction_queue = ChessModelAPI(self.config, model).prediction_queue
+			self.prediction_queue = model.get_api_queue()
 		else:
 			self.prediction_queue = p_queue
 
@@ -92,7 +91,7 @@ class ChessPlayer:
 		#self.deboog(env)
 		if can_stop and self.play_config.resign_threshold is not None and \
 						root_value <= self.play_config.resign_threshold \
-						and env.turn > self.play_config.min_resign_turn:
+						and env.num_halfmoves > self.play_config.min_resign_turn:
 			return None
 		else:
 			self.moves.append([env.observation, list(policy)])
@@ -259,7 +258,6 @@ class ChessPlayer:
 		return policy
 
 	def sl_action(self, observation, action):
-
 		policy = np.zeros(self.labels_n)
 		k = self.move_lookup[chess.Move.from_uci(action)] 
 		policy[k] = 1.0

@@ -83,7 +83,7 @@ class EvaluateWorker:
             white, black = ng_player, current_player
 
         while not env.done:
-            if env.turn >= self.config.eval.max_game_length:
+            if env.num_halfmoves >= self.config.eval.max_game_length:
                 env.adjudicate()
                 break
             if env.board.turn == chess.BLACK:
@@ -94,7 +94,7 @@ class EvaluateWorker:
 
         if env.winner == Winner.draw:
             ng_score = 0.5
-        elif (env.winner == Winner.white) == current_white:
+        elif env.whitewon == current_white:
             ng_score = 0
         else:
             ng_score = 1

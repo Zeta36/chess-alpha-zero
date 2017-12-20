@@ -5,7 +5,6 @@ import numpy as np
 
 class ChessModelAPI:
 	def __init__(self, config: Config, agent_model): # ChessModel
-		self.config = config
 		self.agent_model = agent_model
 		self.prediction_queue = Manager().Queue()
 		prediction_worker = Thread(target=self.predict_batch_worker, name="prediction_worker")

@@ -15,6 +15,7 @@ from keras.layers.merge import Add
 from keras.layers.normalization import BatchNormalization
 from keras.regularizers import l2
 
+from chess_zero.agent.api_chess import ChessModelAPI
 from chess_zero.config import Config
 
 logger = getLogger(__name__)
@@ -25,6 +26,12 @@ class ChessModel:
         self.config = config
         self.model = None  # type: Model
         self.digest = None
+        self.queue = None
+
+    def get_api_queue(self):
+        if self.queue is None:
+            self.queue = ChessModelAPI(self.config, self).prediction_queue
+        return self.queue
 
     def build(self):
         mc = self.config.model
