@@ -90,7 +90,7 @@ class EvaluateWorker:
             ng_score = 0.5
         elif (env.winner == Winner.white) == current_white:
             ng_score = 0
-        else
+        else:
             ng_score = 1
         return ng_score, env
 

@@ -228,7 +228,7 @@ def aux_planes(fen):
 
 def to_planes(fen):
     board_state = replace_tags_board(fen)
-    pieces_both = np.zeros(shape = (12, 8, 8))
+    pieces_both = np.zeros(shape = (12, 8, 8),dtype=np.float32)
     for rank in range(8):
         for file in range(8):
             v = board_state[rank * 8 + file]
