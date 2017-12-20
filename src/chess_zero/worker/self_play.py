@@ -56,6 +56,7 @@ class SelfPlayWorker:
         self.buffer = []
 
     def start(self):
+        new_pgn = open("test.pgn","wt")
         self.buffer = []
         self.idx = 1
 
@@ -66,6 +67,11 @@ class SelfPlayWorker:
             print(f"game {self.idx:3} time={end_time - start_time:5.1f}s "
                 f"halfmoves={env.turn:2} {env.winner:12} "
                 f"{'by resign ' if env.resigned else '          '}")
+            game = chess.pgn.Game.from_board(env.board)
+            game.headers["White"] = "current_model"
+            game.headers["Black"] = "current_model"
+            new_pgn.write(str(game)+"\n\n")
+            new_pgn.flush()
             pyperclip.copy(env.board.fen())
             if (self.idx % self.config.play_data.nb_game_in_file) == 0:
                 reload_best_model_weight_if_changed(self.model)

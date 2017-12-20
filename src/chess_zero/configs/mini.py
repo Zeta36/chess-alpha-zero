@@ -17,7 +17,7 @@ class PlayDataConfig:
     def __init__(self):
         self.sl_nb_game_in_file = 100
         self.nb_game_in_file = 50
-        self.max_file_num = 15
+        self.max_file_num = 150
 
 
 class PlayConfig:
@@ -55,7 +55,7 @@ class ModelConfig:
     cnn_filter_num = 256
     cnn_filter_size = 3
     res_layer_num = 7
-    l2_reg = 1e-4
+    l2_reg = 3e-5
     value_fc_size = 256
     distributed = False
     input_depth = 101

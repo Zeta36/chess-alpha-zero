@@ -1,8 +1,8 @@
-import json
 import os
 from glob import glob
 import fnmatch
 from logging import getLogger
+import json
 
 from chess_zero.config import ResourceConfig
 
@@ -10,10 +10,8 @@ logger = getLogger(__name__)
 
 
 def find_pgn_files(directory, pattern='*.pgn'):
-    files = []
-    for root, dirnames, filenames in os.walk(directory):
-        for filename in fnmatch.filter(filenames, pattern):
-            files.append(os.path.join(root, filename))
+    dir_pattern = os.path.join(directory, pattern)
+    files = list(sorted(glob(dir_pattern)))
     return files
 
 
@@ -29,10 +27,28 @@ def get_next_generation_model_dirs(rc: ResourceConfig):
     return dirs
 
 def write_game_data_to_file(path, data):
-    with open(path, "wt") as f:
-        json.dump(data, f)
-
+    try:
+        with open(path, "wt") as f:
+            json.dump(data, f)
+    except Exception as e:
+        print(e)
 
 def read_game_data_from_file(path):
-    with open(path, "rt") as f:
-        return json.load(f)
+    try:
+        with open(path, "rt") as f:
+            return json.load(f)
+    except Exception as e:
+        print(e)
+
+# def conv_helper(path):
+#     with open(path, "rt") as f:
+#         data = json.load(f)
+#     with open(path, "wb") as f:
+#         pickle.dump(data, f)
+
+# def convert_json_to_pickle():
+#     import os
+#     files = [x for x in os.listdir() if x.endswith(".json")]
+#     from concurrent.futures import ProcessPoolExecutor
+#     with ProcessPoolExecutor(max_workers=6) as executor:
+#         executor.map(conv_helper,files)

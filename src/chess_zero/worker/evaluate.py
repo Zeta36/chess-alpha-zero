@@ -41,6 +41,7 @@ class EvaluateWorker:
             self.remove_model(model_dir)
 
     def evaluate_model(self, ng_model):
+        new_pgn = open("test.pgn","wt")
         results = []
         win_rate = 0
         for game_idx in range(self.config.eval.game_num):
@@ -51,9 +52,15 @@ class EvaluateWorker:
             win_rate = sum(results) / len(results)
             logger.debug(f"game {game_idx:3}: ng_score={ng_score:.1f} as {'black' if current_white else 'white'} "
                          f"{'by resign ' if env.resigned else '          '}"
-                         f"win_rate={win_rate*100:.1f}% "
+                         f"win_rate={win_rate*100:5.1f}% "
                          f"{env.board.fen()}")
+            game = chess.pgn.Game.from_board(env.board)
+            game.headers["White"] = "current_model" if current_white else "ng_model"
+            game.headers["Black"] = "ng_model" if current_white else "current_model"
+            new_pgn.write(str(game)+"\n\n")
+            new_pgn.flush()
             pyperclip.copy(env.board.fen())
+
             if results.count(0) >= self.config.eval.game_num * (1-self.config.eval.replace_rate):
                 logger.debug(f"lose count reach {results.count(0)} so give up challenge")
                 break

@@ -91,8 +91,8 @@ class SupervisedLearningWorker:
 
 def get_buffer(game, config) -> (ChessEnv, list):
     env = ChessEnv().reset()
-    black = ChessPlayer(config)
-    white = ChessPlayer(config)
+    black = ChessPlayer(config, dummy = True)
+    white = ChessPlayer(config, dummy = True)
     result = game.headers["Result"]
     actions = []
     while not game.is_end():

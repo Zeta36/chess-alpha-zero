@@ -35,23 +35,24 @@ class ActionStats:
 
 class ChessPlayer:
 	# dot = False
-	def __init__(self, config: Config, model=None, p_queue=None, play_config=None):
+	def __init__(self, config: Config, model=None, p_queue=None, play_config=None, dummy=False):
+		self.moves = []
 
 		self.config = config
 		self.play_config = play_config or self.config.play
+		self.labels_n = config.n_labels
+		self.labels = config.labels
+		self.move_lookup = {chess.Move.from_uci(move): i for move, i in zip(self.labels, range(self.labels_n))}
+		if dummy:
+			return
+
 		if model:
 			self.prediction_queue = ChessModelAPI(self.config, model).prediction_queue
 		else:
 			self.prediction_queue = p_queue
 
-		self.move_lookup = {k:v for k,v in zip((chess.Move.from_uci(move) for move in self.config.labels),range(len(self.config.labels)))}
-		self.labels_n = config.n_labels
-		self.labels = config.labels
-		self.is_thinking = False
 		m = Manager()
 		self.queue_pool = [m.Queue() for _ in range(self.play_config.search_threads)]
-
-		self.moves = []
 
 		self.thinking_history = {}  # for fun
 		self.reset()
@@ -256,14 +257,13 @@ class ChessPlayer:
 		policy /= np.sum(policy)
 		return policy
 
-	def sl_action(self, board, action):
-		env = ChessEnv().update(board)
+	def sl_action(self, observation, action):
 
 		policy = np.zeros(self.labels_n)
 		k = self.move_lookup[chess.Move.from_uci(action)] 
 		policy[k] = 1.0
 
-		self.moves.append([env.observation, list(policy)])
+		self.moves.append([observation, list(policy)])
 		return action
 
 	def finish_game(self, z):
