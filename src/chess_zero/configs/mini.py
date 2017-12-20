@@ -22,7 +22,8 @@ class PlayDataConfig:
 
 class PlayConfig:
     def __init__(self):
-        self.max_processes = 8
+        self.max_processes = 1
+        self.search_threads = 16
         self.vram_frac = 1.0
         self.simulation_num_per_move = 100
         self.thinking_loop = 1
@@ -32,11 +33,10 @@ class PlayConfig:
         self.dirichlet_alpha = 0.3
         self.tau_decay_rate = 0.99
         self.virtual_loss = 3
-        self.parallel_search_num = 16
         self.prediction_worker_sleep_sec = 0.001
         self.resign_threshold = -0.8
         self.min_resign_turn = 5
-        self.max_game_length = 1000
+        self.max_game_length = 10
 
 
 class TrainerConfig:

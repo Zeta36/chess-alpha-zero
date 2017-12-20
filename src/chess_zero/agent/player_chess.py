@@ -11,12 +11,11 @@ import time
 import numpy as np
 import chess
 
-from chess_zero.agent.api_chess import ChessModelAPI, QueueItem
+from chess_zero.agent.api_chess import ChessModelAPI
 from chess_zero.config import Config
 from chess_zero.env.chess_env import ChessEnv, Winner
 #from chess_zero.play_game.uci import info
 
-# QueueItem = namedtuple("QueueItem", "state future")
 HistoryItem = namedtuple("HistoryItem", "action policy values visit")
 
 logger = getLogger(__name__)
@@ -36,7 +35,7 @@ class ActionStats:
 
 class ChessPlayer:
 	# dot = False
-	def __init__(self, config: Config, p_queue, play_config=None):
+	def __init__(self, config: Config, p_queue: Queue, play_config=None):
 
 		self.config = config
 		self.play_config = play_config or self.config.play
@@ -46,6 +45,8 @@ class ChessPlayer:
 		self.labels_n = config.n_labels
 		self.labels = config.labels
 		self.is_thinking = False
+		m = Manager()
+		self.queue_pool = [m.Queue() for _ in range(self.play_config.search_threads)]
 
 		self.moves = []
 
@@ -79,19 +80,10 @@ class ChessPlayer:
 	def action(self, env, can_stop = True) -> str:
 		self.reset()
 
-		self.is_thinking = True
-		# prediction_worker = Thread(target=self.predict_batch_worker,name="prediction_worker")
-		# prediction_worker.daemon = True
-		# prediction_worker.start()
-		# self.api.start_working()
-		try:
-			for tl in range(self.play_config.thinking_loop):
-				root_value, naked_value = self.search_moves(env)
-				policy = self.calc_policy(env)
-				action = int(np.random.choice(range(self.labels_n), p = self.apply_temperature(policy, env.turn)))
-		finally:
-			self.is_thinking = False
-		# prediction_worker.join()
+		for tl in range(self.play_config.thinking_loop):
+			root_value, naked_value = self.search_moves(env)
+			policy = self.calc_policy(env)
+			action = int(np.random.choice(range(self.labels_n), p = self.apply_temperature(policy, env.turn)))
 		#print(naked_value)
 		#self.deboog(env)
 		if can_stop and self.play_config.resign_threshold is not None and \
@@ -112,13 +104,13 @@ class ChessPlayer:
 		#     stacktracer.trace_start("trace.html")
 		#     ChessPlayer.dot = True
 
-		# futures = []
-		# with ThreadPoolExecutor(max_workers=self.play_config.parallel_search_num) as executor:
-		# 	for _ in range(self.play_config.simulation_num_per_move):
-		# 		futures.append(executor.submit(self.search_my_move,env=env.copy(),is_root_node=True))
+		futures = []
+		with ThreadPoolExecutor(max_workers=self.play_config.search_threads) as executor:
+			for _ in range(self.play_config.simulation_num_per_move):
+				futures.append(executor.submit(self.search_my_move,env=env.copy(),is_root_node=True))
 
-		# vals = [f.result() for f in futures]
-		vals=[self.search_my_move(env.copy(),True) for _ in range(self.play_config.simulation_num_per_move)]
+		vals = [f.result() for f in futures]
+		#vals=[self.search_my_move(env.copy(),True) for _ in range(self.play_config.simulation_num_per_move)]
 
 		return np.max(vals), vals[0]
 
@@ -137,21 +129,18 @@ class ChessPlayer:
 
 		state = state_key(env)
 
-		my_lock = self.node_lock[state]
-
-		with my_lock:
+		with self.node_lock[state]:
 			if state not in self.tree:
 				leaf_p, leaf_v = self.expand_and_evaluate(env = env)
 				self.tree[state].p = leaf_p
 				return leaf_v # I'm returning everything from the POV of side to move
 			#assert state in self.tree
 
-		# SELECT STEP
+			# SELECT STEP
 			action_t = self.select_action_q_and_u(env, is_root_node)
 
-		virtual_loss = self.play_config.virtual_loss
+			virtual_loss = self.play_config.virtual_loss
 
-		with my_lock:
 			my_visitstats = self.tree[state]
 			my_stats = my_visitstats.a[action_t]
 
@@ -166,7 +155,7 @@ class ChessPlayer:
 		# BACKUP STEP
 		# on returning search path
 		# update: N, W, Q
-		with my_lock:
+		with self.node_lock[state]:
 			my_stats.n += -virtual_loss + 1
 			my_visitstats.sum_n += -virtual_loss + 1
 			my_stats.w += virtual_loss + leaf_v
@@ -182,7 +171,7 @@ class ChessPlayer:
 		"""
 		state_planes = env.canonical_input_planes()
 
-		leaf_p, leaf_v = self.predict(statex=state_planes)
+		leaf_p, leaf_v = self.predict(state_planes)
 		# these are canonical policy and value (i.e. side to move is "white")
 
 		if env.board.turn == chess.BLACK:
@@ -191,25 +180,12 @@ class ChessPlayer:
 
 		return leaf_p, leaf_v
 
-	# def predict_batch_worker(self):
-	#     while self.is_thinking:
-	#         if self.prediction_queue:
-	#             with self.prediction_queue_lock:
-	#                 item_list = self.prediction_queue
-	#                 self.prediction_queue = []
-	#             #logger.debug(f"predicting {len(item_list)} items")
-	#             data = np.array([x.state for x in item_list])
-	#             policy_ary, value_ary = self.api.predict(data)
-	#             for item, p, v in zip(item_list, policy_ary, value_ary):
-	#                 item.future.set_result((p, float(v)))
-	#         else:
-	#             time.sleep(self.play_config.prediction_worker_sleep_sec)
-
-	def predict(self, statex):
-		q = Queue()
-		# item = QueueItem(statex, future)
-		self.prediction_queue.put((statex,q))
-		return q.get()
+	def predict(self, state_planes):
+		q = self.queue_pool.pop()
+		self.prediction_queue.put((state_planes,q))
+		ret = q.get()
+		self.queue_pool.append(q)
+		return ret
 
 	#@profile
 	def select_action_q_and_u(self, env, is_root_node) -> chess.Move:

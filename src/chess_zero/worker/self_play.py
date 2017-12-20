@@ -19,18 +19,16 @@ import pyperclip
 
 logger = getLogger(__name__)
 
-
 def start(config: Config):
     #tf_util.set_session_config(config.play.vram_frac)
 
     cmodel = load_model(config)
-    api = ChessModelAPI(config, cmodel) # only ever make one of these
-    pq = api.prediction_queue
+    p_queue = ChessModelAPI(config, cmodel).prediction_queue # only ever make one of these
 
     futures = []
     with ProcessPoolExecutor(max_workers=config.play.max_processes) as executor:
         for _ in range(config.play.max_processes):
-            futures.append(executor.submit(startone,config,pq))
+            futures.append(executor.submit(startone, config, p_queue))
 
     return [f.result() for f in futures]
 
@@ -46,21 +44,18 @@ def startone(config, pq):
     SelfPlayWorker(config,pq).start()
 
 class SelfPlayWorker:
-    def __init__(self, config: Config, pq):
+    def __init__(self, config: Config, p_q):
         """
         :param config:
         :param ChessEnv|None env:
         :param chess_zero.agent.model_chess.ChessModel|None model:
         """
         self.config = config
-        self.prediction_queue = pq
+        self.prediction_queue = p_q
         self.env = ChessEnv()
-        self.black = None  # type: ChessPlayer
-        self.white = None  # type: ChessPlayer
         self.buffer = []
 
     def start(self):
-
         self.buffer = []
         self.idx = 1
 
@@ -68,9 +63,9 @@ class SelfPlayWorker:
             start_time = time()
             env = self.start_game(self.idx)
             end_time = time()
-            logger.debug(f"game {self.idx:3} time={end_time - start_time:2.0f}s "
-                         f"halfmoves={env.turn:2} {env.winner:12} "
-                         f"{'by resign ' if env.resigned else '          '}")
+            print(f"game {self.idx:3} time={end_time - start_time:2.0f}s "
+                f"halfmoves={env.turn:2} {env.winner:12} "
+                f"{'by resign ' if env.resigned else '          '}")
             pyperclip.copy(env.board.fen())
             if (self.idx % self.config.play_data.nb_game_in_file) == 0:
                 reload_best_model_weight_if_changed(self.model)
@@ -88,7 +83,7 @@ class SelfPlayWorker:
                 action = self.black.action(self.env)
             else:
                 action = self.white.action(self.env)
-            #print(action)
+            print(action)
             self.env.step(action)
         self.finish_game()
         self.save_play_data(write=idx % self.config.play_data.nb_game_in_file == 0)
