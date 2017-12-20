@@ -135,7 +135,7 @@ class ChessEnv:
         hist_both = np.asarray(np.split(parts[0],8)) # 8 histories
         cur = hist_both[0]
         assert cur.shape == (12, 8, 8)
-        fakefen = ["1" for _ in range(64)]
+        fakefen = ["1"] * 64
         for i in range(12):
             for rank in range(8):
                 for file in range(8):
@@ -187,7 +187,7 @@ class ChessEnv:
         return self.board.fen()
 
     def deltamove(self, fen_next):
-        moves = [x for x in self.board.legal_moves]
+        moves = list(self.board.legal_moves)
         for mov in moves:
             self.board.push(mov)
             fee = self.board.fen()
