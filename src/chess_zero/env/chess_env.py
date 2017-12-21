@@ -166,14 +166,31 @@ def check_current_planes(realfen, planes):
                     assert fakefen[rank * 8 + file] == '1'
                     fakefen[rank * 8 + file] = pieces_order[i]
 
+    castling = planes[12:16]
+    fiftymove = planes[16][0][0]
+    ep = planes[17]
 
+    castlingstring = ""
+    for i in range(4):
+        if castling[i][0][0] == 1:
+            castlingstring += castling_order[i]
+
+    if len(castlingstring) == 0:
+        castlingstring = '-'
+
+    epstr = "-"
     for rank in range(8):
         for file in range(8):
-            if cur[i][rank][file] == 1:
-                assert fakefen[rank * 8 + file] == '1'
-                fakefen[rank * 8 + file] = pieces_order[i]
+            if ep[rank][file] == 1:
+                epstr = coord_to_alg((rank, file))
 
     realfen = maybe_flip_fen(realfen, flip=isblackturn(realfen))
+    realparts = realfen.split(' ')
+    assert realparts[1] == 'w'
+    assert realparts[2] == castlingstring
+    assert realparts[3] == epstr
+    assert int(realparts[4]) == fiftymove
+    # realparts[5] is the fifty-move clock, discard that
     return "".join(fakefen) == replace_tags_board(realfen)
 
 def canon_input_planes(fen):
@@ -208,10 +225,10 @@ def maybe_flip_fen(fen, flip = False):
 def aux_planes(fen):
     foo = fen.split(' ')
 
-    eps = foo[3]
-    en_passant = np.zeros((8,8),dtype=np.float32)
+    en_passant = np.zeros((8, 8), dtype=np.float32)
+    eps = alg_to_coord(foo[3])
     if eps != '-':
-        en_passant[ord(eps[0])-ord('a')][int(eps[1])] = 1
+        en_passant[eps[0]][eps[1]] = 1
 
     fifty_move_count = int(foo[4])
     fifty_move = np.full((8,8), fifty_move_count, dtype=np.float32)
@@ -223,9 +240,38 @@ def aux_planes(fen):
                         np.full((8,8), int('q' in castling), dtype=np.float32), \
                         fifty_move, \
                         en_passant]
+
     ret = np.asarray(auxiliary_planes, dtype=np.float32)
     assert ret.shape == (6,8,8)
     return ret
+
+# FEN board is like this:
+# a8 b8 .. h8
+# a7 b7 .. h7
+# .. .. .. ..
+# a1 b1 .. h1
+# 
+#  0  1 ..  7
+#  8  9 .. 15
+# .. .. .. ..
+# 56 57 .. 63
+
+# my planes are like this:
+# 00 01 .. 07
+# 10 11 .. 17
+# .. .. .. ..
+# 70 71 .. 77
+#
+
+def alg_to_coord(alg):
+    rank = 8 - int(alg[1])        # 0-7
+    file = ord(alg[0]) - ord('a') # 0-7
+    return (rank, file)
+
+def coord_to_alg(coord):
+    letter = chr(ord('a') + coord[1])
+    number = str(8 - coord[0])
+    return letter + number
 
 def to_planes(fen):
     board_state = replace_tags_board(fen)

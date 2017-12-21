@@ -57,7 +57,7 @@ class ModelConfig:
     cnn_filter_num = 256
     cnn_filter_size = 3
     res_layer_num = 7
-    l2_reg = 5e-5
+    l2_reg = 1e-5 # I don't have much worry for overfitting with only 1-2 epochs/dataset
     value_fc_size = 256
     distributed = False
     input_depth = 18
