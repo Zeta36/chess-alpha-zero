@@ -24,7 +24,6 @@ class VisitStats:
 	def __init__(self):
 		self.a = defaultdict(ActionStats)
 		self.sum_n = 0
-		self.selected_yet = False
 
 class ActionStats:
 	def __init__(self):
@@ -54,12 +53,12 @@ class ChessPlayer:
 		self.queue_pool = [m.Queue() for _ in range(self.play_config.search_threads)]
 
 		self.thinking_history = {}  # for fun
+		self.node_lock = defaultdict(Lock)
 		self.reset()
 
 	# we are leaking memory + losing MCTS nodes...!! (without this)
 	def reset(self):
 		self.tree = defaultdict(VisitStats)
-		self.node_lock = defaultdict(Lock)
 
 	def deboog(self, env):
 		print(env.testeval())
@@ -147,8 +146,8 @@ class ChessPlayer:
 			my_visitstats = self.tree[state]
 			my_stats = my_visitstats.a[action_t]
 
-			my_stats.n += virtual_loss
 			my_visitstats.sum_n += virtual_loss
+			my_stats.n += virtual_loss
 			my_stats.w += -virtual_loss
 			my_stats.q = my_stats.w / my_stats.n
 
@@ -160,8 +159,8 @@ class ChessPlayer:
 		# on returning search path
 		# update: N, W, Q
 		with self.node_lock[state]:
-			my_stats.n += -virtual_loss + 1
 			my_visitstats.sum_n += -virtual_loss + 1
+			my_stats.n += -virtual_loss + 1
 			my_stats.w += virtual_loss + leaf_v
 			my_stats.q = my_stats.w / my_stats.n
 
@@ -198,15 +197,15 @@ class ChessPlayer:
 
 		my_visitstats = self.tree[state]
 
-		if not my_visitstats.selected_yet: #initialize p
-			my_visitstats.selected_yet = True
-			tot_p = 0
+		if my_visitstats.p is not None: #push p to edges
+			tot_p = 1e-8
 			for mov in env.board.legal_moves:
 				mov_p = my_visitstats.p[self.move_lookup[mov]]
 				my_visitstats.a[mov].p = mov_p
 				tot_p += mov_p
 			for a_s in my_visitstats.a.values():
 				a_s.p /= tot_p
+			my_visitstats.p = None
 
 		# noinspection PyUnresolvedReferences
 		xx_ = np.sqrt(my_visitstats.sum_n + 1)  # SQRT of sum(N(s, b); for all b)
@@ -247,8 +246,6 @@ class ChessPlayer:
 		"""calc π(a|s0)
 		:return:
 		"""
-		pc = self.play_config
-
 		state = state_key(env)
 		my_visitstats = self.tree[state]
 		policy = np.zeros(self.labels_n)

@@ -179,7 +179,7 @@ def convert_to_cheating_data(data):
 
 
         state_planes = env.canonical_input_planes()
-        # assert env.check_current_planes(state_planes)
+        assert env.check_current_planes(state_planes)
 
         side_to_move = state_fen.split(" ")[1]
         if side_to_move == 'b':
