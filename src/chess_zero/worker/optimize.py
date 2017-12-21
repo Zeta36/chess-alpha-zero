@@ -188,7 +188,6 @@ def convert_to_cheating_data(data):
             #assert abs(np.sum(policy) - 1) < 1e-8
             pass
 
-
         # if np.sum(policy) != 0:
         #     policy /= np.sum(policy)
 
