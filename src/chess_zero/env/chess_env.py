@@ -10,8 +10,13 @@ logger = getLogger(__name__)
 # noinspection PyArgumentList
 Winner = enum.Enum("Winner", "black white draw")
 
-plane_order = ['K','Q','R','B','N','P','k','q','r','b','n','p']
-ind = {plane_order[i]: i for i in range(12)}
+# input planes
+pieces_order = 'KQRBNPkqrbnp'
+castling_order = 'KQkq'
+# fifty-move-rule
+# en passant
+
+ind = {pieces_order[i]: i for i in range(12)}
 
 class ChessEnv:
 
@@ -147,7 +152,7 @@ def testeval(fen, absolute = False) -> float:
     v = ans/tot
     if not absolute and isblackturn(fen):
         v = -v
-    assert abs(v) <= 1
+    assert abs(v) < 1
     return np.tanh(v * 3) # arbitrary
 
 def check_current_planes(realfen, planes):
@@ -159,7 +164,14 @@ def check_current_planes(realfen, planes):
             for file in range(8):
                 if cur[i][rank][file] == 1:
                     assert fakefen[rank * 8 + file] == '1'
-                    fakefen[rank * 8 + file] = plane_order[i]
+                    fakefen[rank * 8 + file] = pieces_order[i]
+
+
+    for rank in range(8):
+        for file in range(8):
+            if cur[i][rank][file] == 1:
+                assert fakefen[rank * 8 + file] == '1'
+                fakefen[rank * 8 + file] = pieces_order[i]
 
     realfen = maybe_flip_fen(realfen, flip=isblackturn(realfen))
     return "".join(fakefen) == replace_tags_board(realfen)

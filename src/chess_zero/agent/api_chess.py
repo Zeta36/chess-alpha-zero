@@ -29,8 +29,6 @@ class ChessModelAPI:
 					while pipe.poll():
 						data.append(pipe.recv())
 						result_pipes.append(pipe)
-				if not data:
-					continue
 				#print(f"predicting {len(result_pipes)} items")
 				data = np.asarray(data, dtype=np.float32)
 				policy_ary, value_ary = self.agent_model.model.predict_on_batch(data)

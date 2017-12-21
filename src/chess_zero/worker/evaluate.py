@@ -38,7 +38,7 @@ class EvaluateWorker:
                 logger.debug(f"New Model become best model: {model_dir}")
                 save_as_best_model(ng_model)
                 self.current_model = ng_model
-            #self.remove_model(model_dir)
+            #self.remove_model(model_dir) # i lost my models because of this :(
 
     def evaluate_model(self, ng_model):
         ng_pipes = self.m.list([ng_model.get_pipes(self.play_config.search_threads) for _ in range(self.play_config.max_processes)])
@@ -79,7 +79,7 @@ class EvaluateWorker:
         return win_rate >= self.config.eval.replace_rate
 
     def remove_model(self, model_dir):
-        return 
+        return  # dont you dare
         rc = self.config.resource
         config_path = os.path.join(model_dir, rc.next_generation_model_config_filename)
         weight_path = os.path.join(model_dir, rc.next_generation_model_weight_filename)
