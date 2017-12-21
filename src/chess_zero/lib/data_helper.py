@@ -3,6 +3,7 @@ from glob import glob
 import fnmatch
 from logging import getLogger
 import json
+import chess
 
 from chess_zero.config import ResourceConfig
 
