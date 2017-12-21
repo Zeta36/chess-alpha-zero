@@ -118,25 +118,7 @@ class ChessEnv:
         return np.tanh(v * 3) # arbitrary
 
     def canonical_input_planes(self):
-        current_player = self.board.fen().split(" ")[1]
-        flip = (current_player == 'b')
-        return all_input_planes(maybe_flip_fen(self.board.fen(),flip))
-
-    def check_current_planes(self, planes):
-        cur = planes[0:12]
-        assert cur.shape == (12, 8, 8)
-        fakefen = ["1"] * 64
-        for i in range(12):
-            for rank in range(8):
-                for file in range(8):
-                    if cur[i][rank][file] == 1:
-                        assert fakefen[rank * 8 + file] == '1'
-                        fakefen[rank * 8 + file] = plane_order[i]
-
-        realfen = self.board.fen()
-        if self.board.turn == chess.BLACK:
-            realfen = maybe_flip_fen(realfen, flip=True)
-        return "".join(fakefen) == replace_tags_board(realfen)
+        return canon_input_planes(self.board.fen())
 
     def copy(self):
         env = copy.copy(self)
@@ -164,6 +146,24 @@ class ChessEnv:
             if fee == fen_next:
                 return mov.uci()
         return None
+
+def check_current_planes(realfen, planes):
+    cur = planes[0:12]
+    assert cur.shape == (12, 8, 8)
+    fakefen = ["1"] * 64
+    for i in range(12):
+        for rank in range(8):
+            for file in range(8):
+                if cur[i][rank][file] == 1:
+                    assert fakefen[rank * 8 + file] == '1'
+                    fakefen[rank * 8 + file] = plane_order[i]
+
+    realfen = maybe_flip_fen(realfen, flip=isblackturn(realfen))
+    return "".join(fakefen) == replace_tags_board(realfen)
+
+def canon_input_planes(fen):
+    fen = maybe_flip_fen(fen, isblackturn(fen))
+    return all_input_planes(fen)
 
 def all_input_planes(fen):
     current_aux_planes = aux_planes(fen)
@@ -233,3 +233,6 @@ def replace_tags_board(board_san):
     board_san = board_san.replace("7", "1111111")
     board_san = board_san.replace("8", "11111111")
     return board_san.replace("/", "")
+
+def isblackturn(fen):
+    return fen.split(" ")[1] == 'b'

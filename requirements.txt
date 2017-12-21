@@ -56,3 +56,4 @@ wcwidth==0.1.7
 Werkzeug==0.12.2
 widgetsnbextension==3.0.6
 pyperclip
+ujson

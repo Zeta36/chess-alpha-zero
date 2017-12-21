@@ -2,7 +2,7 @@ import os
 from glob import glob
 import fnmatch
 from logging import getLogger
-import json
+import ujson
 import chess
 import pyperclip
 
@@ -39,14 +39,14 @@ def get_next_generation_model_dirs(rc: ResourceConfig):
 def write_game_data_to_file(path, data):
     try:
         with open(path, "wt") as f:
-            json.dump(data, f)
+            ujson.dump(data, f)
     except Exception as e:
         print(e)
 
 def read_game_data_from_file(path):
     try:
         with open(path, "rt") as f:
-            return json.load(f)
+            return ujson.load(f)
     except Exception as e:
         print(e)
 

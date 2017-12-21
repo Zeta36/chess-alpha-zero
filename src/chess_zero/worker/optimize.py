@@ -11,10 +11,9 @@ import numpy as np
 from chess_zero.agent.model_chess import ChessModel
 from chess_zero.config import Config
 from chess_zero.lib import tf_util
-from chess_zero.lib.data_helper import get_game_data_filenames, read_game_data_from_file, \
-    get_next_generation_model_dirs
+from chess_zero.lib.data_helper import get_game_data_filenames, read_game_data_from_file, get_next_generation_model_dirs
 from chess_zero.lib.model_helper import load_best_model_weight
-from chess_zero.env.chess_env import ChessEnv
+from chess_zero.env.chess_env import ChessEnv, canon_input_planes, check_current_planes, isblackturn
 import chess
 from concurrent.futures import ProcessPoolExecutor
 from collections import deque
@@ -109,13 +108,14 @@ class OptimizeWorker:
         state_ary, policy_ary, value_ary = [], [], []
         while self.loaded_data:
             s, p, v = self.loaded_data.popleft().result()
-            state_ary.append(s)
-            policy_ary.append(p)
-            value_ary.append(v)
+            #assert s[0].shape== (18,8,8)
+            state_ary.extend(s)
+            policy_ary.extend(p)
+            value_ary.extend(v)
 
-        state_ary = np.concatenate(state_ary)
-        policy_ary = np.concatenate(policy_ary)
-        value_ary = np.concatenate(value_ary)
+        state_ary = np.asarray(state_ary,dtype=np.float32)
+        policy_ary = np.asarray(policy_ary,dtype=np.float32)
+        value_ary = np.asarray(value_ary,dtype=np.float32)
         return state_ary, policy_ary, value_ary
 
 
@@ -168,39 +168,26 @@ def convert_to_cheating_data(data):
     env = ChessEnv().reset()
     for state_fen, policy, value in data:
         move_number = int(state_fen.split(' ')[5])
-        # f2 = maybe_flip_fen(maybe_flip_fen(state_fen,True),True)
-        # assert state_fen == f2
-        next_move = env.deltamove(state_fen)
-        if next_move == None: # new game!
-            assert state_fen == chess.STARTING_FEN
-            env.reset()
-        else:
-            env.step(next_move, False)
 
-        state_planes = env.canonical_input_planes()
-        assert env.check_current_planes(state_planes)
+        state_planes = canon_input_planes(state_fen)
+        assert check_current_planes(state_fen, state_planes)
 
-        side_to_move = state_fen.split(" ")[1]
-        if side_to_move == 'b':
+        if isblackturn(state_fen):
             #assert np.sum(policy) == 0
             policy = Config.flip_policy(policy)
         else:
             #assert abs(np.sum(policy) - 1) < 1e-8
             pass
 
-        # if np.sum(policy) != 0:
-        #     policy /= np.sum(policy)
-
-        #assert abs(np.sum(policy) - 1) < 1e-8
-
         assert len(policy) == 1968
         assert state_planes.dtype == np.float32
+        assert state_planes.shape == (18,8,8) #print(state_planes.shape)
         
-        value_certainty = min(15, move_number)/15 # reduces the noise of the opening... plz train faster
+        value_certainty = min(25, move_number)/25 # reduces the noise of the opening... plz train faster
         SL_value = value*value_certainty + env.testeval()*(1-value_certainty)
 
         state_list.append(state_planes)
         policy_list.append(policy)
         value_list.append(SL_value)
 
-    return np.array(state_list, dtype=np.float32), np.array(policy_list, dtype=np.float32), np.array(value_list, dtype=np.float32)
+    return np.asarray(state_list, dtype=np.float32), np.asarray(policy_list, dtype=np.float32), np.asarray(value_list, dtype=np.float32)

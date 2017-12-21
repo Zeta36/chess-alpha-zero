@@ -9,7 +9,7 @@ from chess_zero.config import Config
 from chess_zero.env.chess_env import ChessEnv, Winner
 from chess_zero.lib import tf_util
 from chess_zero.lib.data_helper import get_game_data_filenames, write_game_data_to_file, find_pgn_files
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ProcessPoolExecutor,as_completed
 import random
 from threading import Thread    
 from collections import deque
@@ -31,11 +31,8 @@ class SupervisedLearningWorker:
         :param chess_zero.agent.model_chess.ChessModel|None model:
         """
         self.config = config
-        self.env = env     # type: ChessEnv
-        self.black = None  # type: ChessPlayer
-        self.white = None  # type: ChessPlayer
         self.buffer = []
-        self.executor = ProcessPoolExecutor(max_workers=5)
+        self.executor = ProcessPoolExecutor(max_workers=8)
 
     def start(self):
         self.buffer = []
@@ -50,7 +47,7 @@ class SupervisedLearningWorker:
                          f"halfmoves={env.num_halfmoves:3} {env.winner:12}"
                          f"{' by resign ' if env.resigned else '           '}"
                          f"{env.observation.split(' ')[0]}")
-            start_time=end_time
+            start_time = end_time
             self.idx += 1
 
         self.flush_buffer()
@@ -59,20 +56,16 @@ class SupervisedLearningWorker:
         files = find_pgn_files(self.config.resource.play_data_dir)
         print (files)
         from itertools import chain
-        return chain.from_iterable(self.read_file(filename) for filename in files)
+        return as_completed(chain.from_iterable(self.read_file(filename) for filename in files))
 
     def read_file(self,filename):
         pgn = open(filename, errors='ignore')
-
-        futures = deque()
-        for offset in chess.pgn.scan_offsets(pgn):
+        offsets = list(chess.pgn.scan_offsets(pgn))
+        print(f"found {len(offsets)} games")
+        for offset in offsets:
             pgn.seek(offset)
             game = chess.pgn.read_game(pgn)
-            futures.append(self.executor.submit(get_buffer, game, self.config))
-
-        print(f"found {len(futures)} games")
-        while futures: 
-            yield futures.popleft() # no more memleak
+            yield self.executor.submit(get_buffer, game, self.config)
 
     def save_data(self, data):
         self.buffer += data
@@ -95,6 +88,8 @@ def get_buffer(game, config) -> (ChessEnv, list):
     black = ChessPlayer(config, dummy = True)
     white = ChessPlayer(config, dummy = True)
     result = game.headers["Result"]
+    whiteelo, blackelo = int(game.headers["WhiteElo"]), int(game.headers["BlackElo"])
+    blackworse = (whiteelo>blackelo)
     actions = []
     while not game.is_end():
         game = game.variation(0)
@@ -103,9 +98,9 @@ def get_buffer(game, config) -> (ChessEnv, list):
     observation = env.observation
     while not env.done and k < len(actions):
         if env.board.turn == chess.WHITE:
-            action = white.sl_action(observation, actions[k]) #ignore=True
+            action = white.sl_action(observation, actions[k], ignore=(not blackworse)) #ignore=True
         else:
-            action = black.sl_action(observation, actions[k]) #ignore=True
+            action = black.sl_action(observation, actions[k], ignore=blackworse) #ignore=True
         board, info = env.step(action, False)
         observation = board.fen()
         k += 1
