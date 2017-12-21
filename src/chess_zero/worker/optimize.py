@@ -198,7 +198,7 @@ def convert_to_cheating_data(data):
         assert len(policy) == 1968
         assert state_planes.dtype == np.float32
         
-        value_certainty = max(15, move_number)/15 # reduces the noise of the opening... plz train faster
+        value_certainty = min(15, move_number)/15 # reduces the noise of the opening... plz train faster
         SL_value = value*value_certainty + env.testeval()*(1-value_certainty)
 
         state_list.append(state_planes)

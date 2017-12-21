@@ -4,6 +4,7 @@ import fnmatch
 from logging import getLogger
 import json
 import chess
+import pyperclip
 
 from chess_zero.config import ResourceConfig
 
@@ -12,7 +13,7 @@ logger = getLogger(__name__)
 def prettyprint(env, colors):
     new_pgn = open("test.pgn","at")
     game = chess.pgn.Game.from_board(env.board)
-    game.headers["Result"] = env.result
+    game.headers["Result"] = env.board.result(claim_draw=True)
     game.headers["White"], game.headers["Black"] = colors
     new_pgn.write(str(game)+"\n\n")
     new_pgn.close()

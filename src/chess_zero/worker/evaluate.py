@@ -9,7 +9,6 @@ from chess_zero.env.chess_env import ChessEnv, Winner
 from chess_zero.lib import tf_util
 from chess_zero.lib.data_helper import get_next_generation_model_dirs, prettyprint
 from chess_zero.lib.model_helper import save_as_best_model, load_best_model_weight
-import pyperclip
 
 logger = getLogger(__name__)
 

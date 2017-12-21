@@ -14,7 +14,6 @@ from chess_zero.lib.model_helper import load_best_model_weight, save_as_best_mod
     reload_best_model_weight_if_changed
 
 import numpy as np
-import pyperclip
 
 logger = getLogger(__name__)
 
