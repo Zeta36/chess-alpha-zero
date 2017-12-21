@@ -35,7 +35,7 @@ class ChessModel:
 
     def build(self):
         mc = self.config.model
-        in_x = x = Input((101, 8, 8))
+        in_x = x = Input((18, 8, 8))
 
         # (batch, channels, height, width)
         x = Conv2D(filters=mc.cnn_filter_num, kernel_size=mc.cnn_filter_size, padding="same",

@@ -120,9 +120,10 @@ class ChessEnv:
     def canonical_input_planes(self):
         current_player = self.board.fen().split(" ")[1]
         flip = (current_player == 'b')
-        return self.all_input_planes(flip)
+        return all_input_planes(maybe_flip_fen(self.board.fen(),flip))
 
-    def check_current_planes(self, cur):
+    def check_current_planes(self, planes):
+        cur = planes[0:12]
         assert cur.shape == (12, 8, 8)
         fakefen = ["1"] * 64
         for i in range(12):
@@ -164,25 +165,14 @@ class ChessEnv:
                 return mov.uci()
         return None
 
-def all_input_planes(fen, flip=False):
-    fen = maybe_flip_fen(fen, flip)
+def all_input_planes(fen):
     current_aux_planes = aux_planes(fen)
 
-    history_both = black_and_white_plane(fen, flip)
+    history_both = to_planes(fen)
 
     ret = np.vstack((history_both, current_aux_planes))
     assert ret.shape == (18, 8, 8)
     return ret
-
-def black_and_white_plane(fen):
-    # flip = True applies the flip + invert color invariant transformation
-
-    # history planes
-    board_fen = maybe_flip_fen(fen, flip)
-    history_both = to_planes(fen = board_fen)
-        
-    assert history_both.shape == (12, 8, 8)
-    return history_both
 
 def maybe_flip_fen(fen, flip = False):
     if flip == False:
@@ -205,7 +195,8 @@ def aux_planes(fen):
 
     eps = foo[3]
     en_passant = np.zeros((8,8),dtype=np.float32)
-    en_passant[ord(eps[0])-ord('a')][int(eps[1])] = 1
+    if eps != '-':
+        en_passant[ord(eps[0])-ord('a')][int(eps[1])] = 1
 
     fifty_move_count = int(foo[4])
     fifty_move = np.full((8,8), fifty_move_count, dtype=np.float32)

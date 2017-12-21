@@ -177,7 +177,6 @@ def convert_to_cheating_data(data):
         else:
             env.step(next_move, False)
 
-
         state_planes = env.canonical_input_planes()
         assert env.check_current_planes(state_planes)
 
