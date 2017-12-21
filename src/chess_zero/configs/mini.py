@@ -48,14 +48,14 @@ class TrainerConfig:
         self.start_total_steps = 0
         self.save_model_steps = 25
         self.load_data_steps = 100
-        self.loss_weights = [1.0, 1.0] # [policy, value] prevent value overfit in SL
+        self.loss_weights = [2.0, 1.0] # [policy, value] prevent value overfit in SL
 
 
 class ModelConfig:
     cnn_filter_num = 256
     cnn_filter_size = 3
     res_layer_num = 7
-    l2_reg = 3e-5
+    l2_reg = 5e-3
     value_fc_size = 256
     distributed = False
     input_depth = 101

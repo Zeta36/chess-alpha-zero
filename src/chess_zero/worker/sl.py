@@ -68,7 +68,7 @@ class SupervisedLearningWorker:
         for offset in chess.pgn.scan_offsets(pgn):
             pgn.seek(offset)
             game = chess.pgn.read_game(pgn)
-            futures.append(self.executor.submit(get_buffer,game,self.config))
+            futures.append(self.executor.submit(get_buffer, game, self.config))
 
         print(f"found {len(futures)} games")
         while futures: 
@@ -85,7 +85,7 @@ class SupervisedLearningWorker:
         path = os.path.join(rc.play_data_dir, rc.play_data_filename_tmpl % game_id)
         logger.info(f"save play data to {path}")
         #print(self.buffer)
-        thread = Thread(target = write_game_data_to_file, args=(path,self.buffer))
+        thread = Thread(target = write_game_data_to_file, args=(path, self.buffer))
         thread.start()
         self.buffer = []
 
@@ -105,7 +105,7 @@ def get_buffer(game, config) -> (ChessEnv, list):
         if env.board.turn == chess.WHITE:
             action = white.sl_action(observation, actions[k]) #ignore=True
         else:
-            action = black.sl_action(observation, actions[k], ignore=True) #ignore=True
+            action = black.sl_action(observation, actions[k]) #ignore=True
         board, info = env.step(action, False)
         observation = board.fen()
         k += 1

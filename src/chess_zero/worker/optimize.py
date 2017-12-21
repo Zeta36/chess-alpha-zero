@@ -17,6 +17,7 @@ from chess_zero.lib.model_helper import load_best_model_weight
 from chess_zero.env.chess_env import ChessEnv
 import chess
 from concurrent.futures import ProcessPoolExecutor
+from collections import deque
 
 logger = getLogger(__name__)
 
@@ -31,7 +32,7 @@ class OptimizeWorker:
         self.config = config
         self.model = None  # type: ChessModel
         self.loaded_filenames = set()
-        self.loaded_data = [] # this should just be a ring buffer i.e. queue of length 500,000 in AZ
+        self.loaded_data = deque() # this should just be a ring buffer i.e. queue of length 500,000 in AZ
         self.dataset = None
         self.optimizer = None
         self.executor = ProcessPoolExecutor(max_workers=config.trainer.cleaning_processes)
@@ -107,8 +108,7 @@ class OptimizeWorker:
     def collect_all_loaded_data(self):
         state_ary, policy_ary, value_ary = [], [], []
         while self.loaded_data:
-            f = self.loaded_data.pop()
-            s, p, v = f.result()
+            s, p, v = self.loaded_data.popleft().result()
             state_ary.append(s)
             policy_ary.append(p)
             value_ary.append(v)
@@ -183,10 +183,11 @@ def convert_to_cheating_data(data):
 
         side_to_move = state_fen.split(" ")[1]
         if side_to_move == 'b':
-            assert np.sum(policy) == 0
-            # policy = Config.flip_policy(policy)
+            #assert np.sum(policy) == 0
+            policy = Config.flip_policy(policy)
         else:
-            assert abs(np.sum(policy) - 1) < 1e-8
+            #assert abs(np.sum(policy) - 1) < 1e-8
+            pass
 
 
         # if np.sum(policy) != 0:
@@ -197,11 +198,11 @@ def convert_to_cheating_data(data):
         assert len(policy) == 1968
         assert state_planes.dtype == np.float32
         
-        if random.random()<0.5:
-            value = env.testeval() # LOL
+        value_certainty = max(15, move_number)/15 # reduces the noise of the opening... plz train faster
+        SL_value = value*value_certainty + env.testeval()*(1-value_certainty)
 
         state_list.append(state_planes)
         policy_list.append(policy)
-        value_list.append(value)
+        value_list.append(SL_value)
 
     return np.array(state_list, dtype=np.float32), np.array(policy_list, dtype=np.float32), np.array(value_list, dtype=np.float32)
