@@ -178,7 +178,7 @@ def convert_to_cheating_data(data):
         assert state_planes.shape == (18, 8, 8) #print(state_planes.shape)
 
         move_number = int(state_fen.split(' ')[5])
-        value_certainty = min(25, move_number)/25 # reduces the noise of the opening... plz train faster
+        value_certainty = min(15, move_number)/15 # reduces the noise of the opening... plz train faster
         SL_value = value*value_certainty + testeval(state_fen, False)*(1-value_certainty)
 
         state_list.append(state_planes)

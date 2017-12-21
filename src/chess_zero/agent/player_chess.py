@@ -251,12 +251,11 @@ class ChessPlayer:
 		policy /= np.sum(policy)
 		return policy
 
-	def sl_action(self, observation, action, ignore=False):
+	def sl_action(self, observation, action, weight=1):
 		policy = np.zeros(self.labels_n)
 
-		if not ignore:
-			k = self.move_lookup[chess.Move.from_uci(action)] 
-			policy[k] = 1.0
+		k = self.move_lookup[chess.Move.from_uci(action)] 
+		policy[k] = weight
 
 		self.moves.append([observation, list(policy)])
 		return action

@@ -30,7 +30,6 @@ def start(config: Config):
     return [f.result() for f in futures]
 
 def load_model(config) -> list:
-    from chess_zero.agent.model_chess import ChessModel
     model = ChessModel(config)
     if config.opts.new or not load_best_model_weight(model):
         model.build()
@@ -55,7 +54,7 @@ class SelfPlayWorker:
     def start(self):
         new_pgn = open("test.pgn","wt")
         self.buffer = []
-        self.idx = 1
+        self.idx = 0
 
         while True:
             start_time = time()

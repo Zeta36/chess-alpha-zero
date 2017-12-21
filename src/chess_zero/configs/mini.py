@@ -15,7 +15,8 @@ class EvaluateConfig:
 
 class PlayDataConfig:
     def __init__(self):
-        self.min_elo_policy = 1900
+        self.min_elo_policy =  500 # 0 weight
+        self.max_elo_policy = 2000 # 1 weight
         self.sl_nb_game_in_file = 100
         self.nb_game_in_file = 50
         self.max_file_num = 150
@@ -36,7 +37,7 @@ class PlayConfig:
         self.virtual_loss = 3
         self.resign_threshold = -0.8
         self.min_resign_turn = 5
-        self.max_game_length = 10
+        self.max_game_length = 1000
 
 
 class TrainerConfig:
@@ -49,7 +50,7 @@ class TrainerConfig:
         self.start_total_steps = 0
         self.save_model_steps = 25
         self.load_data_steps = 100
-        self.loss_weights = [2.0, 1.0] # [policy, value] prevent value overfit in SL
+        self.loss_weights = [1.25, 1.0] # [policy, value] prevent value overfit in SL
 
 
 class ModelConfig:

@@ -32,14 +32,14 @@ class SupervisedLearningWorker:
         """
         self.config = config
         self.buffer = []
-        self.executor = ProcessPoolExecutor(max_workers=8)
+        self.executor = ProcessPoolExecutor(max_workers=7)
 
     def start(self):
         self.buffer = []
         self.idx = 1
         start_time = time()
 
-        for res in self.read_all_files():
+        for res in as_completed(self.read_all_files()):
             env, data = res.result()
             self.save_data(data)
             end_time = time()
@@ -50,22 +50,25 @@ class SupervisedLearningWorker:
             start_time = end_time
             self.idx += 1
 
-        self.flush_buffer()
+        if len(self.buffer) > 0:
+            self.flush_buffer()
 
     def read_all_files(self):
         files = find_pgn_files(self.config.resource.play_data_dir)
         print (files)
         from itertools import chain
-        return as_completed(chain.from_iterable(self.read_file(filename) for filename in files))
-
+        return chain.from_iterable(self.read_file(filename) for filename in files)
     def read_file(self,filename):
         pgn = open(filename, errors='ignore')
         offsets = list(chess.pgn.scan_offsets(pgn))
-        print(f"found {len(offsets)} games")
+        n = len(offsets)
+        print(f"found {n} games")
         for offset in offsets:
             pgn.seek(offset)
             game = chess.pgn.read_game(pgn)
             yield self.executor.submit(get_buffer, game, self.config)
+        print("done reading")
+        # return self.executor.map(get_buffer, games, [self.config]*n, chunksize=self.config.play_data.sl_nb_game_in_file)
 
     def save_data(self, data):
         self.buffer += data
@@ -77,11 +80,13 @@ class SupervisedLearningWorker:
         game_id = datetime.now().strftime("%Y%m%d-%H%M%S.%f")
         path = os.path.join(rc.play_data_dir, rc.play_data_filename_tmpl % game_id)
         logger.info(f"save play data to {path}")
-        #print(self.buffer)
         thread = Thread(target = write_game_data_to_file, args=(path, self.buffer))
         thread.start()
         self.buffer = []
 
+def clip_elo_policy(config, elo):
+    return min(1, max(0, elo - config.play_data.min_elo_policy) / config.play_data.max_elo_policy)
+    # 0 until min_elo, 1 after max_elo, linear in between
 
 def get_buffer(game, config) -> (ChessEnv, list):
     env = ChessEnv().reset()
@@ -89,6 +94,8 @@ def get_buffer(game, config) -> (ChessEnv, list):
     white = ChessPlayer(config, dummy = True)
     result = game.headers["Result"]
     whiteelo, blackelo = int(game.headers["WhiteElo"]), int(game.headers["BlackElo"])
+    whiteweight = clip_elo_policy(config, whiteelo)
+    blackweight = clip_elo_policy(config, blackelo)
     actions = []
     while not game.is_end():
         game = game.variation(0)
@@ -97,9 +104,9 @@ def get_buffer(game, config) -> (ChessEnv, list):
     observation = env.observation
     while not env.done and k < len(actions):
         if env.board.turn == chess.WHITE:
-            action = white.sl_action(observation, actions[k], ignore= whiteelo<config.play_data.min_elo_policy) #ignore=True
+            action = white.sl_action(observation, actions[k], weight= whiteweight) #ignore=True
         else:
-            action = black.sl_action(observation, actions[k], ignore= blackelo<config.play_data.min_elo_policy) #ignore=True
+            action = black.sl_action(observation, actions[k], weight= blackweight) #ignore=True
         board, info = env.step(action, False)
         observation = board.fen()
         k += 1

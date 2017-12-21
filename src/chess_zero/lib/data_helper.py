@@ -5,6 +5,7 @@ from logging import getLogger
 import ujson
 import chess
 import pyperclip
+from datetime import datetime
 
 from chess_zero.config import ResourceConfig
 
@@ -15,6 +16,7 @@ def prettyprint(env, colors):
     game = chess.pgn.Game.from_board(env.board)
     game.headers["Result"] = env.board.result(claim_draw=True)
     game.headers["White"], game.headers["Black"] = colors
+    game.headers["Date"] = datetime.now().strftime("%Y.%m.%d")
     new_pgn.write(str(game)+"\n\n")
     new_pgn.close()
     pyperclip.copy(env.board.fen())

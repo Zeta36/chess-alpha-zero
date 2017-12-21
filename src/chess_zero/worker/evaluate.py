@@ -34,18 +34,17 @@ class EvaluateWorker:
             ng_model, model_dir = self.load_next_generation_model()
             logger.debug(f"start evaluate model {model_dir}")
             ng_is_great = self.evaluate_model(ng_model)
-            # if ng_is_great:
-            #     logger.debug(f"New Model become best model: {model_dir}")
-            #     save_as_best_model(ng_model)
-            #     self.current_model = ng_model
+            if ng_is_great:
+                logger.debug(f"New Model become best model: {model_dir}")
+                save_as_best_model(ng_model)
+                self.current_model = ng_model
             #self.remove_model(model_dir)
-            break
 
     def evaluate_model(self, ng_model):
         ng_pipes = self.m.list([ng_model.get_pipes(self.play_config.search_threads) for _ in range(self.play_config.max_processes)])
 
         futures = []
-        pool = Pool(processes=3, initializer=setpipes, initargs=(self.current_pipes,ng_pipes))
+        pool = Pool(processes=self.play_config.max_processes, initializer=setpipes, initargs=(self.current_pipes, ng_pipes))
         for game_idx in range(self.config.eval.game_num):
             futures.append(pool.apply_async(play_game, args=(self.config, game_idx % 2 == 0)))
 
