@@ -179,7 +179,7 @@ def convert_to_cheating_data(data):
 
         move_number = int(state_fen.split(' ')[5])
         value_certainty = min(25, move_number)/25 # reduces the noise of the opening... plz train faster
-        SL_value = value*value_certainty + testeval(state_fen,False)*(1-value_certainty)
+        SL_value = value*value_certainty + testeval(state_fen, False)*(1-value_certainty)
 
         state_list.append(state_planes)
         policy_list.append(policy)

@@ -36,7 +36,7 @@ class PlayConfig:
         self.virtual_loss = 3
         self.resign_threshold = -0.8
         self.min_resign_turn = 5
-        self.max_game_length = 1000
+        self.max_game_length = 10
 
 
 class TrainerConfig:

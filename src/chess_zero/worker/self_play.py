@@ -19,17 +19,17 @@ logger = getLogger(__name__)
 
 def start(config: Config):
     #tf_util.set_session_config(config.play.vram_frac)
-
-    p_queue = load_model(config).get_api_queue()
+    model = load_model(config)
 
     futures = []
     with ProcessPoolExecutor(max_workers=config.play.max_processes) as executor:
         for _ in range(config.play.max_processes):
-            futures.append(executor.submit(startone, config, p_queue))
+            alloc_pipes = model.get_pipes(config.play.search_threads)
+            futures.append(executor.submit(startone, config, alloc_pipes))
 
     return [f.result() for f in futures]
 
-def load_model(config) -> ChessModel:
+def load_model(config) -> list:
     from chess_zero.agent.model_chess import ChessModel
     model = ChessModel(config)
     if config.opts.new or not load_best_model_weight(model):
@@ -37,18 +37,18 @@ def load_model(config) -> ChessModel:
         save_as_best_model(model)
     return model
 
-def startone(config, p_q):
-    SelfPlayWorker(config, p_q).start()
+def startone(config, pipes: list):
+    SelfPlayWorker(config, pipes).start()
 
 class SelfPlayWorker:
-    def __init__(self, config: Config, p_q):
+    def __init__(self, config: Config, pipes: list):
         """
         :param config:
         :param ChessEnv|None env:
         :param chess_zero.agent.model_chess.ChessModel|None model:
         """
         self.config = config
-        self.prediction_queue = p_q
+        self.pipes = pipes
         self.env = ChessEnv()
         self.buffer = []
 
@@ -73,8 +73,8 @@ class SelfPlayWorker:
 
     def start_game(self, idx):
         self.env.reset()
-        self.black = ChessPlayer(self.config, p_queue=self.prediction_queue)
-        self.white = ChessPlayer(self.config, p_queue=self.prediction_queue)
+        self.black = ChessPlayer(self.config, pipes=self.pipes)
+        self.white = ChessPlayer(self.config, pipes=self.pipes)
         while not self.env.done:
             if self.env.board.turn == chess.WHITE:
                 action = self.white.action(self.env)
@@ -110,6 +110,7 @@ class SelfPlayWorker:
         self.buffer = []
 
     def remove_play_data(self):
+        return
         files = get_game_data_filenames(self.config.resource)
         if len(files) < self.config.play_data.max_file_num:
             return

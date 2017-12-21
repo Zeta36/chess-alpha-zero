@@ -26,12 +26,12 @@ class ChessModel:
         self.config = config
         self.model = None  # type: Model
         self.digest = None
-        self.queue = None
+        self.api = None
 
-    def get_api_queue(self):
-        if self.queue is None:
-            self.queue = ChessModelAPI(self.config, self).prediction_queue
-        return self.queue
+    def get_pipes(self, num = 1):
+        if self.api is None:
+            self.api = ChessModelAPI(self.config, self)
+        return [self.api.get_pipe() for _ in range(num)]
 
     def build(self):
         mc = self.config.model

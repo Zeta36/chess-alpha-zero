@@ -2,7 +2,6 @@ from concurrent.futures import ThreadPoolExecutor
 from collections import defaultdict, namedtuple
 from logging import getLogger
 from threading import Thread, Lock
-from multiprocessing import Manager
 
 from profilehooks import profile
 
@@ -33,7 +32,7 @@ class ActionStats:
 
 class ChessPlayer:
 	# dot = False
-	def __init__(self, config: Config, model=None, p_queue=None, play_config=None, dummy=False):
+	def __init__(self, config: Config, model=None, pipes=None, play_config=None, dummy=False):
 		self.moves = []
 
 		self.config = config
@@ -45,12 +44,9 @@ class ChessPlayer:
 			return
 
 		if model:
-			self.prediction_queue = model.get_api_queue()
+			self.pipe_pool = model.get_pipes(self.play_config.search_threads)
 		else:
-			self.prediction_queue = p_queue
-
-		m = Manager()
-		self.queue_pool = [m.Queue() for _ in range(self.play_config.search_threads)]
+			self.pipe_pool = pipes
 
 		self.thinking_history = {}  # for fun
 		self.node_lock = defaultdict(Lock)
@@ -184,10 +180,10 @@ class ChessPlayer:
 		return leaf_p, leaf_v
 
 	def predict(self, state_planes):
-		q = self.queue_pool.pop()
-		self.prediction_queue.put_nowait((state_planes,q))
-		ret = q.get()
-		self.queue_pool.append(q)
+		pipe = self.pipe_pool.pop()
+		pipe.send(state_planes)
+		ret = pipe.recv()
+		self.pipe_pool.append(pipe)
 		return ret
 
 	#@profile
