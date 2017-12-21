@@ -226,8 +226,8 @@ def aux_planes(fen):
     foo = fen.split(' ')
 
     en_passant = np.zeros((8, 8), dtype=np.float32)
-    eps = alg_to_coord(foo[3])
-    if eps != '-':
+    if foo[3] != '-':
+        eps = alg_to_coord(foo[3])
         en_passant[eps[0]][eps[1]] = 1
 
     fifty_move_count = int(foo[4])
