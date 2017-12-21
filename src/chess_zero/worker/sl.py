@@ -89,7 +89,6 @@ def get_buffer(game, config) -> (ChessEnv, list):
     white = ChessPlayer(config, dummy = True)
     result = game.headers["Result"]
     whiteelo, blackelo = int(game.headers["WhiteElo"]), int(game.headers["BlackElo"])
-    blackworse = (whiteelo>blackelo)
     actions = []
     while not game.is_end():
         game = game.variation(0)
@@ -98,9 +97,9 @@ def get_buffer(game, config) -> (ChessEnv, list):
     observation = env.observation
     while not env.done and k < len(actions):
         if env.board.turn == chess.WHITE:
-            action = white.sl_action(observation, actions[k], ignore=(not blackworse)) #ignore=True
+            action = white.sl_action(observation, actions[k], ignore= whiteelo<config.play_data.min_elo_policy) #ignore=True
         else:
-            action = black.sl_action(observation, actions[k], ignore=blackworse) #ignore=True
+            action = black.sl_action(observation, actions[k], ignore= blackelo<config.play_data.min_elo_policy) #ignore=True
         board, info = env.step(action, False)
         observation = board.fen()
         k += 1

@@ -13,7 +13,7 @@ from chess_zero.config import Config
 from chess_zero.lib import tf_util
 from chess_zero.lib.data_helper import get_game_data_filenames, read_game_data_from_file, get_next_generation_model_dirs
 from chess_zero.lib.model_helper import load_best_model_weight
-from chess_zero.env.chess_env import ChessEnv, canon_input_planes, check_current_planes, isblackturn
+from chess_zero.env.chess_env import ChessEnv, canon_input_planes, check_current_planes, isblackturn, testeval
 import chess
 from concurrent.futures import ProcessPoolExecutor
 from collections import deque
@@ -165,26 +165,21 @@ def convert_to_cheating_data(data):
     state_list = []
     policy_list = []
     value_list = []
-    env = ChessEnv().reset()
     for state_fen, policy, value in data:
-        move_number = int(state_fen.split(' ')[5])
 
         state_planes = canon_input_planes(state_fen)
         assert check_current_planes(state_fen, state_planes)
 
         if isblackturn(state_fen):
-            #assert np.sum(policy) == 0
             policy = Config.flip_policy(policy)
-        else:
-            #assert abs(np.sum(policy) - 1) < 1e-8
-            pass
 
         assert len(policy) == 1968
         assert state_planes.dtype == np.float32
-        assert state_planes.shape == (18,8,8) #print(state_planes.shape)
-        
+        assert state_planes.shape == (18, 8, 8) #print(state_planes.shape)
+
+        move_number = int(state_fen.split(' ')[5])
         value_certainty = min(25, move_number)/25 # reduces the noise of the opening... plz train faster
-        SL_value = value*value_certainty + env.testeval()*(1-value_certainty)
+        SL_value = value*value_certainty + testeval(state_fen,False)*(1-value_certainty)
 
         state_list.append(state_planes)
         policy_list.append(policy)

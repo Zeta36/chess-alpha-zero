@@ -97,26 +97,6 @@ class ChessEnv:
         self.done = True
         self.winner = Winner.draw
 
-    def testeval(self, absolute = False) -> float:
-        piecevals = {'K': 3, 'Q': 9, 'R': 5,'B': 3.25,'N': 3,'P': 1} # K is always on board....
-        ans = 0.0
-        tot = 0
-        for c in self.board.fen().split(' ')[0]:
-            if not c.isalpha():
-                continue
-            #assert c.upper() in piecevals   
-            if c.isupper():
-                ans += piecevals[c]
-                tot += piecevals[c]
-            else:
-                ans -= piecevals[c.upper()]
-                tot += piecevals[c.upper()]
-        v = ans/tot
-        if not absolute and self.board.turn == chess.BLACK:
-            v = -v
-        assert abs(v) <= 1
-        return np.tanh(v * 3) # arbitrary
-
     def canonical_input_planes(self):
         return canon_input_planes(self.board.fen())
 
@@ -146,6 +126,29 @@ class ChessEnv:
             if fee == fen_next:
                 return mov.uci()
         return None
+
+    def testeval(self, absolute=False) -> float:
+        return testeval(self.board.fen(), absolute)
+
+def testeval(fen, absolute = False) -> float:
+    piecevals = {'K': 3, 'Q': 9, 'R': 5,'B': 3.25,'N': 3,'P': 1} # K is always on board....
+    ans = 0.0
+    tot = 0
+    for c in fen.split(' ')[0]:
+        if not c.isalpha():
+            continue
+        #assert c.upper() in piecevals   
+        if c.isupper():
+            ans += piecevals[c]
+            tot += piecevals[c]
+        else:
+            ans -= piecevals[c.upper()]
+            tot += piecevals[c.upper()]
+    v = ans/tot
+    if not absolute and isblackturn(fen):
+        v = -v
+    assert abs(v) <= 1
+    return np.tanh(v * 3) # arbitrary
 
 def check_current_planes(realfen, planes):
     cur = planes[0:12]
