@@ -122,20 +122,7 @@ class ChessEnv:
         flip = (current_player == 'b')
         return self.all_input_planes(flip)
 
-    def all_input_planes(self, flip=False):
-        myboard = maybe_flip_fen(self.board.fen(), flip)
-        current_aux_planes = aux_planes(myboard)
-
-        history_both = self.black_and_white_plane(flip)
-
-        ret = np.vstack((history_both, current_aux_planes))
-        assert ret.shape == (101, 8, 8)
-        return ret
-
-    def check_current_planes(self, planes):
-        parts = np.split(planes,[96,5])
-        hist_both = np.asarray(np.split(parts[0],8)) # 8 histories
-        cur = hist_both[0]
+    def check_current_planes(self, cur):
         assert cur.shape == (12, 8, 8)
         fakefen = ["1"] * 64
         for i in range(12):
@@ -149,27 +136,6 @@ class ChessEnv:
         if self.board.turn == chess.BLACK:
             realfen = maybe_flip_fen(realfen, flip=True)
         return "".join(fakefen) == replace_tags_board(realfen)
-
-    def black_and_white_plane(self, flip = False):
-        # flip = True applies the flip + invert color invariant transformation
-
-        history_both = []
-        history_moves = []
-
-        # history planes
-        for i in range(8):
-            board_fen = maybe_flip_fen(self.board.fen(),flip)
-            my_planes = to_planes(fen = board_fen)
-            history_both.extend(my_planes)
-            if len(self.board.move_stack) > 0:
-                history_moves.append(self.board.pop())
-
-        for mov in reversed(history_moves):
-            self.board.push(mov)
-            
-        history_both = np.asarray(history_both)
-        assert history_both.shape == (96, 8, 8)
-        return history_both
 
     def copy(self):
         env = copy.copy(self)
@@ -198,6 +164,26 @@ class ChessEnv:
                 return mov.uci()
         return None
 
+def all_input_planes(fen, flip=False):
+    fen = maybe_flip_fen(fen, flip)
+    current_aux_planes = aux_planes(fen)
+
+    history_both = black_and_white_plane(fen, flip)
+
+    ret = np.vstack((history_both, current_aux_planes))
+    assert ret.shape == (18, 8, 8)
+    return ret
+
+def black_and_white_plane(fen):
+    # flip = True applies the flip + invert color invariant transformation
+
+    # history planes
+    board_fen = maybe_flip_fen(fen, flip)
+    history_both = to_planes(fen = board_fen)
+        
+    assert history_both.shape == (12, 8, 8)
+    return history_both
+
 def maybe_flip_fen(fen, flip = False):
     if flip == False:
         return fen
@@ -216,16 +202,23 @@ def maybe_flip_fen(fen, flip = False):
 
 def aux_planes(fen):
     foo = fen.split(' ')
-    castling_planes =     [ np.full((8,8), int('K' in foo[2]), dtype=np.float32) ]
-    castling_planes.append( np.full((8,8), int('Q' in foo[2]), dtype=np.float32))
-    castling_planes.append( np.full((8,8), int('k' in foo[2]), dtype=np.float32))
-    castling_planes.append( np.full((8,8), int('q' in foo[2]), dtype=np.float32))
-    castling_planes = np.asarray(castling_planes, dtype=np.float32)
-    assert castling_planes.shape == (4,8,8)
-    fifty_move_number = foo[4]
-    fifty_move_plane = [np.full((8, 8), int(fifty_move_number), dtype=np.float32)]
-    ret = np.vstack((castling_planes, fifty_move_plane))
-    assert ret.shape == (5,8,8)
+
+    eps = foo[3]
+    en_passant = np.zeros((8,8),dtype=np.float32)
+    en_passant[ord(eps[0])-ord('a')][int(eps[1])] = 1
+
+    fifty_move_count = int(foo[4])
+    fifty_move = np.full((8,8), fifty_move_count, dtype=np.float32)
+
+    castling = foo[2]
+    auxiliary_planes = [np.full((8,8), int('K' in castling), dtype=np.float32), \
+                        np.full((8,8), int('Q' in castling), dtype=np.float32), \
+                        np.full((8,8), int('k' in castling), dtype=np.float32), \
+                        np.full((8,8), int('q' in castling), dtype=np.float32), \
+                        fifty_move, \
+                        en_passant]
+    ret = np.asarray(auxiliary_planes, dtype=np.float32)
+    assert ret.shape == (6,8,8)
     return ret
 
 def to_planes(fen):

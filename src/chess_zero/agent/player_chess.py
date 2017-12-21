@@ -133,7 +133,7 @@ class ChessPlayer:
 
 		with self.node_lock[state]:
 			if state not in self.tree:
-				leaf_p, leaf_v = self.expand_and_evaluate(env = env)
+				leaf_p, leaf_v = self.expand_and_evaluate(env)
 				self.tree[state].p = leaf_p
 				return leaf_v # I'm returning everything from the POV of side to move
 			#assert state in self.tree

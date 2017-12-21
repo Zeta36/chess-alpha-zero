@@ -58,4 +58,4 @@ class ModelConfig:
     l2_reg = 5e-3
     value_fc_size = 256
     distributed = False
-    input_depth = 101
+    input_depth = 18
