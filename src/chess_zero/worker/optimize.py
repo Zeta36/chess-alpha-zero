@@ -22,7 +22,7 @@ logger = getLogger(__name__)
 
 
 def start(config: Config):
-    tf_util.set_session_config(config.trainer.vram_frac)
+    #tf_util.set_session_config(config.trainer.vram_frac)
     return OptimizeWorker(config).start()
 
 

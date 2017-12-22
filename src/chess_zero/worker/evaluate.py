@@ -11,6 +11,7 @@ from chess_zero.lib.data_helper import get_next_generation_model_dirs, prettypri
 from chess_zero.lib.model_helper import save_as_best_model, load_best_model_weight
 from multiprocessing.pool import Pool
 from multiprocessing import Manager
+from concurrent.futures import ProcessPoolExecutor, as_completed
 
 logger = getLogger(__name__)
 
@@ -34,6 +35,7 @@ class EvaluateWorker:
             ng_model, model_dir = self.load_next_generation_model()
             logger.debug(f"start evaluate model {model_dir}")
             ng_is_great = self.evaluate_model(ng_model)
+            break
             if ng_is_great:
                 logger.debug(f"New Model become best model: {model_dir}")
                 save_as_best_model(ng_model)
@@ -44,16 +46,20 @@ class EvaluateWorker:
         ng_pipes = self.m.list([ng_model.get_pipes(self.play_config.search_threads) for _ in range(self.play_config.max_processes)])
 
         futures = []
-        pool = Pool(processes=self.play_config.max_processes, initializer=setpipes, initargs=(self.current_pipes, ng_pipes))
-        for game_idx in range(self.config.eval.game_num):
-            futures.append(pool.apply_async(play_game, args=(self.config, game_idx % 2 == 0)))
+        with ProcessPoolExecutor(max_workers=self.play_config.max_processes) as executor:
+            for game_idx in range(self.config.eval.game_num):
+                futures.append(executor.submit(play_game, self.config, self.current_pipes, ng_pipes, game_idx % 2 == 0))
 
+        # pool = Pool(processes=self.play_config.max_processes, initializer=setpipes, initargs=(self.current_pipes, ng_pipes))
+        # for game_idx in range(self.config.eval.game_num):
+        #     futures.append(pool.apply_async(play_game, args=(self.config, game_idx % 2 == 0)))
+        print('aaa')
         results = []
         win_rate = 0
         game_idx = 0
-        for fut in futures:
+        for fut in as_completed(futures):
             # ng_score := if ng_model win -> 1, lose -> 0, draw -> 0.5
-            ng_score, env, current_white = fut.get()           
+            ng_score, env, current_white = fut.result()           
             results.append(ng_score)
             win_rate = sum(results) / len(results)
             logger.debug(f"game {game_idx:3}: ng_score={ng_score:.1f} as {'black' if current_white else 'white'} "
@@ -107,15 +113,15 @@ class EvaluateWorker:
         model.load(config_path, weight_path)
         return model, model_dir
 
-def setpipes(cur, ng):
-    global current_pipes
-    current_pipes = cur.pop()
-    global ng_pipes
-    ng_pipes = ng.pop()
+# def setpipes(cur, ng):
+#     global current_pipes
+#     current_pipes = cur.pop()
+#     global ng_pipes
+#     ng_pipes = ng.pop()
 
-def play_game(config, current_white: bool) -> (float, ChessEnv):
-    global current_pipes
-    global ng_pipes
+def play_game(config, cur, ng, current_white: bool) -> (float, ChessEnv):
+    current_pipes = cur.pop()
+    ng_pipes = ng.pop()
     env = ChessEnv().reset()
 
     current_player = ChessPlayer(config, pipes=current_pipes, play_config=config.eval.play_config)
@@ -140,4 +146,7 @@ def play_game(config, current_white: bool) -> (float, ChessEnv):
         ng_score = 0
     else:
         ng_score = 1
+    cur.append(current_pipes)
+    ng.append(ng_pipes)
+    print(ng_score)
     return ng_score, env, current_white
