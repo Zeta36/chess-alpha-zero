@@ -4,9 +4,9 @@ import numpy as np
 
 class PlayWithHumanConfig:
     def __init__(self):
-        self.simulation_num_per_move = 800
-        self.thinking_loop = 1
-        self.logging_thinking = True
+        self.simulation_num_per_move = 1200
+        self.threads_multiplier = 2
+        self.c_puct = 1 # lower  = prefer mean action value
         self.noise_eps = 0
         self.tau_decay_rate = 0  # start deterministic mode
         self.resign_threshold = None
@@ -17,8 +17,7 @@ class PlayWithHumanConfig:
         :return:
         """
         pc.simulation_num_per_move = self.simulation_num_per_move
-        pc.thinking_loop = self.thinking_loop
-        pc.logging_thinking = self.logging_thinking
+        pc.search_threads *= self.threads_multiplier
         pc.noise_eps = self.noise_eps
         pc.tau_decay_rate = self.tau_decay_rate
         pc.resign_threshold = self.resign_threshold
