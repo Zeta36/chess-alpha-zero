@@ -9,6 +9,8 @@ This project is based on these main resources:
 3) DeepMind just released a new version of AlphaGo Zero (named now AlphaZero) where they master chess from scratch: 
 https://arxiv.org/pdf/1712.01815.pdf. In fact, in chess AlphaZero outperformed Stockfish after just 4 hours (300k steps) Wow!
 
+See the [wiki](https://github.com/Akababa/Chess-Zero/wiki) for more details.
+
 Note: <b>This project is still under construction!!</b>
 
 Environment
