@@ -3,7 +3,7 @@ About
 
 Chess reinforcement learning by [AlphaGo Zero](https://deepmind.com/blog/alphago-zero-learning-scratch/) methods.
 
-This project is based on two main resources:
+This project is based on these main resources:
 1) DeepMind's Oct 19th publication: [Mastering the Game of Go without Human Knowledge](https://www.nature.com/articles/nature24270.epdf?author_access_token=VJXbVjaSHxFoctQQ4p2k4tRgN0jAjWel9jnR3ZoTv0PVW4gB86EEpGqTRDtpIz-2rmo8-KG06gqVobU5NSCFeHILHcVFUeMsbvwS-lxjqQGg98faovwjxeTUgZAUMnRQ).
 2) The <b>great</b> Reversi development of the DeepMind ideas that @mokemokechicken did in his repo: https://github.com/mokemokechicken/reversi-alpha-zero
 3) DeepMind just released a new version of AlphaGo Zero (named now AlphaZero) where they master chess from scratch: 
@@ -37,17 +37,16 @@ Modules
 ### Supervised Learning
 
 
-```bash
-python src/chess_zero/run.py sl
-```
-
 I've done a supervised learning new pipeline step (to use those human games files "PGN" we can find in internet as play-data generator).
 This SL step was also used in the first and original version of AlphaGo and maybe chess is a some complex game that we have to pre-train first the policy model before starting the self-play process (i.e., maybe chess is too much complicated for a self training alone).
 
-To use the new SL process is so simple as running in the beginning instead of the worker "self" the new worker "sl".
+To use the new SL process is as simple as running in the beginning instead of the worker "self" the new worker "sl".
 Once the model converges enough with SL play-data we just stop the worker "sl" and start the worker "self" so the model will start improving now due to self-play data.
 
-If you want to use this new SL step you will have to download from internet big PGN files (chess files) and paste them into the "data/play_data" folder.
+```bash
+python src/chess_zero/run.py sl
+```
+If you want to use this new SL step you will have to download big PGN files (chess files) and paste them into the `data/play_data` folder ([FICS](http://ficsgames.org/download.html) is a good source of data). You can also use the [SCID program](http://scid.sourceforge.net/) to filter by headers like player ELO, game result and more.
 
 **To avoid overfitting, I recommend using data sets of at least 3000 games and running at most 3-4 epochs.**
 
