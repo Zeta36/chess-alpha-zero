@@ -65,7 +65,7 @@ class EvaluateWorker:
 
                 colors = ("current_model", "ng_model")
                 if not current_white:
-                    colors=reversed(colors)
+                    colors = reversed(colors)
                 prettyprint(env, colors)
 
                 if results.count(0) >= self.config.eval.game_num * (1-self.config.eval.replace_rate):

@@ -80,12 +80,12 @@ class ChessEnv:
 
     def _resign(self):
         self.resigned = True
-        if self.white_to_move:
-            self.winner = Winner.white
-            self.result = "1-0"
-        else:
+        if self.white_to_move: # WHITE RESIGNED!
             self.winner = Winner.black
             self.result = "0-1"
+        else:
+            self.winner = Winner.white
+            self.result = "1-0"
 
     def adjudicate(self):
         score = self.testeval(absolute = True)
