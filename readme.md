@@ -18,13 +18,13 @@ Environment
 * tensorflow-gpu: 1.3.0
 * Keras: 2.0.8
 
-### First "good" results
+### Results so far
 
-Using the new supervised learning step I created, I've been able to train a model to the point that seems to be learning the openings of chess. Also it seems the model starts to avoid losing naively pieces.
+Using supervised learning on about 10k games, I trained a model to a guesstimate of 1200 elo with 1200 sims/move. One of the strengths of MCTS is it scales quite well with computing power.
 
-Here you can see an example of a game played for me against this model (AI plays black):
- 
-![partida1](https://user-images.githubusercontent.com/17341905/33597844-ea53c8ae-d9a0-11e7-8564-4b9b0f35a221.gif)
+Here you can see an example of a game I (white, ~2000 elo) played against the model in this repo (black):
+
+![img](https://i.imgur.com/gwgHrbg.gif)
 
 Here we have a game trained by @bame55 (AI plays white):
 
