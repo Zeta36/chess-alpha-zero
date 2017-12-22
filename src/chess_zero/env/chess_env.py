@@ -137,7 +137,7 @@ class ChessEnv:
         return testeval(self.board.fen(), absolute)
 
 def testeval(fen, absolute = False) -> float:
-    piecevals = {'K': 3, 'Q': 18, 'R': 5,'B': 3.25,'N': 3,'P': 1} # somehow it doesn't know how to keep its queen
+    piecevals = {'K': 3, 'Q': 14, 'R': 5,'B': 3.25,'N': 3,'P': 1} # somehow it doesn't know how to keep its queen
     ans = 0.0
     tot = 0
     for c in fen.split(' ')[0]:

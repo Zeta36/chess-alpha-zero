@@ -22,3 +22,5 @@ logs/
 *.sh
 requirements.txt
 trace.html
+!/data/model/model_best_config.json
+!/data/model/model_best_weight.h5
