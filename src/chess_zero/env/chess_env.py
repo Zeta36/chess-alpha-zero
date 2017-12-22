@@ -23,28 +23,34 @@ class ChessEnv:
     def __init__(self):
         self.board = None
         self.num_halfmoves = 0
-        self.done = False
         self.winner = None  # type: Winner
         self.resigned = False
+        self.result = None
 
     def reset(self):
         self.board = chess.Board()
         self.num_halfmoves = 0
-        self.done = False
         self.winner = None
         self.resigned = False
         return self
 
     def update(self, board):
         self.board = chess.Board(board)
-        self.done = False
         self.winner = None
         self.resigned = False
         return self
 
     @property
+    def done(self):
+        return self.winner is not None
+
+    @property
     def whitewon(self):
         return self.winner == Winner.white
+
+    @property
+    def white_to_move(self):
+        return self.board.turn == chess.WHITE
 
     def step(self, action: str, check_over = True):
         """
@@ -65,12 +71,11 @@ class ChessEnv:
         return self.board, {}
 
     def _game_over(self):
-        self.done = True
         if self.winner is None:
-            result = self.board.result(claim_draw = True)
-            if result == '1-0':
+            self.result = self.board.result(claim_draw = True)
+            if self.result == '1-0':
                 self.winner = Winner.white
-            elif result == '0-1':
+            elif self.result == '0-1':
                 self.winner = Winner.black
             else:
                 self.winner = Winner.draw
@@ -83,24 +88,28 @@ class ChessEnv:
     def _win_another_player(self):
         if self.board.turn == chess.BLACK:
             self.winner = Winner.black
+            self.result = "0-1"
         else:
             self.winner = Winner.white
+            self.result = "1-0"
 
     def adjudicate(self):
         self.resigned = False
-        self.done = True
         score = self.testeval(absolute = True)
         if abs(score) < 0.01:
-            self.winner= Winner.draw
+            self.winner = Winner.draw
+            self.result = "1/2-1/2"
         elif score > 0:
             self.winner = Winner.white
+            self.result = "1-0"
         else:
             self.winner = Winner.black
+            self.result = "0-1"
 
     def ending_average_game(self):
         self.resigned = False
-        self.done = True
         self.winner = Winner.draw
+        self.result = "1/2-1/2"
 
     def canonical_input_planes(self):
         return canon_input_planes(self.board.fen())

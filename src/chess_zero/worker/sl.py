@@ -36,19 +36,19 @@ class SupervisedLearningWorker:
 
     def start(self):
         self.buffer = []
-        self.idx = 1
+        self.idx = 0
         start_time = time()
-
-        for res in as_completed(self.read_all_files()):
-            env, data = res.result()
-            self.save_data(data)
-            end_time = time()
-            logger.debug(f"game {self.idx:4} time={(end_time - start_time):.3f}s "
-                         f"halfmoves={env.num_halfmoves:3} {env.winner:12}"
-                         f"{' by resign ' if env.resigned else '           '}"
-                         f"{env.observation.split(' ')[0]}")
-            start_time = end_time
-            self.idx += 1
+        with ProcessPoolExecutor(max_workers=7) as self.executor:
+            for res in as_completed(self.read_all_files()):
+                self.idx += 1
+                env, data = res.result()
+                self.save_data(data)
+                end_time = time()
+                logger.debug(f"game {self.idx:4} time={(end_time - start_time):.3f}s "
+                             f"halfmoves={env.num_halfmoves:3} {env.winner:12}"
+                             f"{' by resign ' if env.resigned else '           '}"
+                             f"{env.observation.split(' ')[0]}")
+                start_time = end_time
 
         if len(self.buffer) > 0:
             self.flush_buffer()
@@ -56,18 +56,25 @@ class SupervisedLearningWorker:
     def read_all_files(self):
         files = find_pgn_files(self.config.resource.play_data_dir)
         print (files)
-        from itertools import chain
-        return chain.from_iterable(self.read_file(filename) for filename in files)
+        futures = []
+        for filename in files:
+            futures.extend(self.read_file(filename))
+        return futures
+        # from itertools import chain
+        # return chain.from_iterable(self.read_file(filename) for filename in files)
+
     def read_file(self,filename):
         pgn = open(filename, errors='ignore')
         offsets = list(chess.pgn.scan_offsets(pgn))
         n = len(offsets)
         print(f"found {n} games")
+        futures = []
         for offset in offsets:
             pgn.seek(offset)
             game = chess.pgn.read_game(pgn)
-            yield self.executor.submit(get_buffer, game, self.config)
+            futures.append(self.executor.submit(get_buffer, game, self.config))
         print("done reading")
+        return futures
         # return self.executor.map(get_buffer, games, [self.config]*n, chunksize=self.config.play_data.sl_nb_game_in_file)
 
     def save_data(self, data):
@@ -90,8 +97,8 @@ def clip_elo_policy(config, elo):
 
 def get_buffer(game, config) -> (ChessEnv, list):
     env = ChessEnv().reset()
-    black = ChessPlayer(config, dummy = True)
     white = ChessPlayer(config, dummy = True)
+    black = ChessPlayer(config, dummy = True)
     result = game.headers["Result"]
     whiteelo, blackelo = int(game.headers["WhiteElo"]), int(game.headers["BlackElo"])
     whiteweight = clip_elo_policy(config, whiteelo)

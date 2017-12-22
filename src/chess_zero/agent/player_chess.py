@@ -107,7 +107,7 @@ class ChessPlayer:
 			for _ in range(self.play_config.simulation_num_per_move):
 				futures.append(executor.submit(self.search_my_move,env=env.copy(),is_root_node=True))
 
-		vals = [f.result() for f in futures]
+		vals = [-f.result() for f in futures] #MINUS LOL
 		#vals=[self.search_my_move(env.copy(),True) for _ in range(self.play_config.simulation_num_per_move)]
 
 		return np.max(vals), vals[0]

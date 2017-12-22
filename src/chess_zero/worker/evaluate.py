@@ -28,7 +28,7 @@ class EvaluateWorker:
         self.play_config = config.eval.play_config
         self.current_model = self.load_current_model()
         self.m = Manager()
-        self.current_pipes = self.m.list([self.current_model.get_pipes(self.play_config.search_threads) for _ in range(self.play_config.max_processes)])
+        self.cur_pipes = self.m.list([self.current_model.get_pipes(self.play_config.search_threads) for _ in range(self.play_config.max_processes)])
 
     def start(self):
         while True:
@@ -48,27 +48,27 @@ class EvaluateWorker:
         futures = []
         with ProcessPoolExecutor(max_workers=self.play_config.max_processes) as executor:
             for game_idx in range(self.config.eval.game_num):
-                futures.append(executor.submit(play_game, self.config, self.current_pipes, ng_pipes, game_idx % 2 == 0))
+                fut = executor.submit(play_game, self.config, cur=self.cur_pipes, ng=ng_pipes, current_white=(game_idx % 2 == 0))
+                futures.append(fut)
 # here herer
-        # pool = Pool(processes=self.play_config.max_processes, initializer=setpipes, initargs=(self.current_pipes, ng_pipes))
+        # pool = Pool(processes=self.play_config.max_processes, initializer=setpipes, initargs=(self.cur_pipes, ng_pipes))
         # for game_idx in range(self.config.eval.game_num):
         #     futures.append(pool.apply_async(play_game, args=(self.config, game_idx % 2 == 0)))
             results = []
-            win_rate = 0
             for fut in as_completed(futures):
                 # ng_score := if ng_model win -> 1, lose -> 0, draw -> 0.5
                 ng_score, env, current_white = fut.result()
                 results.append(ng_score)
                 win_rate = sum(results) / len(results)
-                game_idx = len(results)
+                game_idx = len(results) + 1
                 logger.debug(f"game {game_idx:3}: ng_score={ng_score:.1f} as {'black' if current_white else 'white'} "
                              f"{'by resign ' if env.resigned else '          '}"
                              f"win_rate={win_rate*100:5.1f}% "
-                             f"{env.board.fen()}")
+                             f"{env.board.fen().split(' ')[0]}")
+
                 colors = ("current_model", "ng_model")
                 if not current_white:
                     colors=reversed(colors)
-
                 prettyprint(env, colors)
 
                 if results.count(0) >= self.config.eval.game_num * (1-self.config.eval.replace_rate):
@@ -111,18 +111,12 @@ class EvaluateWorker:
         model.load(config_path, weight_path)
         return model, model_dir
 
-# def setpipes(cur, ng):
-#     global current_pipes
-#     current_pipes = cur.pop()
-#     global ng_pipes
-#     ng_pipes = ng.pop()
-
-def play_game(config, cur, ng, current_white: bool) -> (float, ChessEnv):
-    current_pipes = cur.pop()
+def play_game(config, cur, ng, current_white: bool) -> (float, ChessEnv, bool):
+    cur_pipes = cur.pop()
     ng_pipes = ng.pop()
     env = ChessEnv().reset()
 
-    current_player = ChessPlayer(config, pipes=current_pipes, play_config=config.eval.play_config)
+    current_player = ChessPlayer(config, pipes=cur_pipes, play_config=config.eval.play_config)
     ng_player = ChessPlayer(config, pipes=ng_pipes, play_config=config.eval.play_config)
     if current_white:
         white, black = current_player, ng_player
@@ -130,7 +124,7 @@ def play_game(config, cur, ng, current_white: bool) -> (float, ChessEnv):
         white, black = ng_player, current_player
 
     while not env.done:
-        if env.board.turn == chess.WHITE:
+        if env.white_to_move:
             action = white.action(env)
         else:
             action = black.action(env)
@@ -144,6 +138,6 @@ def play_game(config, cur, ng, current_white: bool) -> (float, ChessEnv):
         ng_score = 0
     else:
         ng_score = 1
-    cur.append(current_pipes)
+    cur.append(cur_pipes)
     ng.append(ng_pipes)
     return ng_score, env, current_white
