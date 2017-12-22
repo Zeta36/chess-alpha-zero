@@ -6,7 +6,7 @@ class PlayWithHumanConfig:
         self.simulation_num_per_move = 800
         self.thinking_loop = 1
         self.logging_thinking = True
-        self.noise_eps = 0.1
+        self.noise_eps = 0
         self.tau_decay_rate = 0 # start deterministic mode
         self.resign_threshold = None
 

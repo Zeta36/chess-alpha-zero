@@ -145,7 +145,7 @@ class ChessEnv:
         return testeval(self.board.fen(), absolute)
 
 def testeval(fen, absolute = False) -> float:
-    piecevals = {'K': 3, 'Q': 9, 'R': 5,'B': 3.25,'N': 3,'P': 1} # K is always on board....
+    piecevals = {'K': 3, 'Q': 18, 'R': 5,'B': 3.25,'N': 3,'P': 1} # somehow it doesn't know how to keep its queen
     ans = 0.0
     tot = 0
     for c in fen.split(' ')[0]:
@@ -260,6 +260,7 @@ def aux_planes(fen):
 # .. .. .. ..
 # a1 b1 .. h1
 # 
+# FEN string is like this:
 #  0  1 ..  7
 #  8  9 .. 15
 # .. .. .. ..

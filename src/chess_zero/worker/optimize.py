@@ -168,17 +168,17 @@ def convert_to_cheating_data(data):
     for state_fen, policy, value in data:
 
         state_planes = canon_input_planes(state_fen)
-        assert check_current_planes(state_fen, state_planes)
+        #assert check_current_planes(state_fen, state_planes)
 
         if isblackturn(state_fen):
             policy = Config.flip_policy(policy)
 
-        assert len(policy) == 1968
-        assert state_planes.dtype == np.float32
-        assert state_planes.shape == (18, 8, 8) #print(state_planes.shape)
+        # assert len(policy) == 1968
+        # assert state_planes.dtype == np.float32
+        # assert state_planes.shape == (18, 8, 8) #print(state_planes.shape)
 
         move_number = int(state_fen.split(' ')[5])
-        value_certainty = min(15, move_number)/15 # reduces the noise of the opening... plz train faster
+        value_certainty = min(5, move_number)/5 # reduces the noise of the opening... plz train faster
         SL_value = value*value_certainty + testeval(state_fen, False)*(1-value_certainty)
 
         state_list.append(state_planes)

@@ -110,7 +110,7 @@ class ChessPlayer:
 		vals = [-f.result() for f in futures] #MINUS LOL
 		#vals=[self.search_my_move(env.copy(),True) for _ in range(self.play_config.simulation_num_per_move)]
 
-		return np.max(vals), vals[0]
+		return np.max(vals), vals[0] # vals[0] is kind of racy
 
 	#@profile
 	def search_my_move(self, env: ChessEnv, is_root_node=False) -> float:
