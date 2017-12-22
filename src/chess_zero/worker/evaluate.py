@@ -35,7 +35,6 @@ class EvaluateWorker:
             ng_is_great = self.evaluate_model(ng_model)
             if ng_is_great:
                 logger.debug(f"New Model become best model: {model_dir}")
-                self.move_model(self.config.resource.model_dir)
                 save_as_best_model(ng_model)
                 self.current_model = ng_model
             self.move_model(model_dir) # i lost my models because of this :(
@@ -66,12 +65,12 @@ class EvaluateWorker:
                     colors = reversed(colors)
                 pretty_print(env, colors)
 
-                if results.count(0) >= self.config.eval.game_num * (1-self.config.eval.replace_rate):
+                if len(results)-sum(results) >= self.config.eval.game_num * (1-self.config.eval.replace_rate):
                     logger.debug(f"lose count reach {results.count(0)} so give up challenge")
-                    break
-                if results.count(1) >= self.config.eval.game_num * self.config.eval.replace_rate:
+                    return False
+                if sum(results) >= self.config.eval.game_num * self.config.eval.replace_rate:
                     logger.debug(f"win count reach {results.count(1)} so change best model")
-                    break
+                    return True
 
         win_rate = sum(results) / len(results)
         logger.debug(f"winning rate {win_rate*100:.1f}%")
@@ -83,7 +82,7 @@ class EvaluateWorker:
         # weight_path = os.path.join(model_dir, rc.next_generation_model_weight_filename)
         # os.remove(config_path)
         # os.remove(weight_path)
-        new_dir = os.path.join(rc.model_dir, "copies", model_dir.name)
+        new_dir = os.path.join(rc.next_generation_model_dir, "copies", model_dir.name)
         os.rename(model_dir, new_dir)
 
     def load_current_model(self):

@@ -12,7 +12,7 @@ logger = getLogger(__name__)
 
 
 def pretty_print(env, colors):
-    new_pgn = open("test1.pgn", "at")
+    new_pgn = open("test2.pgn", "at")
     game = chess.pgn.Game.from_board(env.board)
     game.headers["Result"] = env.result
     game.headers["White"], game.headers["Black"] = colors

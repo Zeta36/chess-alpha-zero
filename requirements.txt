@@ -5,3 +5,4 @@ numpy
 pyperclip
 chess
 ujson
+h5py
