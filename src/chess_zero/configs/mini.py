@@ -18,7 +18,7 @@ class PlayDataConfig:
         self.min_elo_policy =  500 # 0 weight
         self.max_elo_policy = 2000 # 1 weight
         self.sl_nb_game_in_file = 100
-        self.nb_game_in_file = 4
+        self.nb_game_in_file = 50
         self.max_file_num = 150
 
 
@@ -37,7 +37,7 @@ class PlayConfig:
         self.virtual_loss = 3
         self.resign_threshold = -0.9
         self.min_resign_turn = 5
-        self.max_game_length = 4
+        self.max_game_length = 1000
 
 
 class TrainerConfig:
