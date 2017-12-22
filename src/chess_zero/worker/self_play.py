@@ -22,7 +22,7 @@ logger = getLogger(__name__)
 
 def start(config: Config):
     return SelfPlayWorker(config).start()
-    
+
 class SelfPlayWorker:
     def __init__(self, config: Config):
         """
@@ -61,7 +61,7 @@ class SelfPlayWorker:
         if len(data) > 0:
             self.flush_buffer()
 
-    def load_model(self) -> list:
+    def load_model(self):
         model = ChessModel(self.config)
         if self.config.opts.new or not load_best_model_weight(model):
             model.build()
