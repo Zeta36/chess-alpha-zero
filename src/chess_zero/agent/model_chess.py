@@ -38,7 +38,7 @@ class ChessModel:
         in_x = x = Input((18, 8, 8))
 
         # (batch, channels, height, width)
-        x = Conv2D(filters=mc.cnn_filter_num, kernel_size=mc.cnn_filter_size, padding="same",
+        x = Conv2D(filters=mc.cnn_filter_num, kernel_size=mc.cnn_first_filter_size, padding="same",
                    data_format="channels_first", use_bias=False, kernel_regularizer=l2(mc.l2_reg))(x)
         x = BatchNormalization(axis=1)(x)
         x = Activation("relu")(x)
