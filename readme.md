@@ -26,16 +26,10 @@ Here you can see an example of a game I (white, ~2000 elo) played against the mo
 
 ![img](https://i.imgur.com/gwgHrbg.gif)
 
-Here we have a game trained by @bame55 (AI plays white):
-
-![partida3](https://user-images.githubusercontent.com/17341905/34030278-8796f7c6-e16c-11e7-9ba4-97af15f2cde5.gif)
-
-
 Modules
 -------
 
 ### Supervised Learning
-
 
 I've done a supervised learning new pipeline step (to use those human games files "PGN" we can find in internet as play-data generator).
 This SL step was also used in the first and original version of AlphaGo and maybe chess is a some complex game that we have to pre-train first the policy model before starting the self-play process (i.e., maybe chess is too much complicated for a self training alone).
