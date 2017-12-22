@@ -6,16 +6,10 @@ Chess reinforcement learning by [AlphaGo Zero](https://deepmind.com/blog/alphago
 This project is based on two main resources:
 1) DeepMind's Oct 19th publication: [Mastering the Game of Go without Human Knowledge](https://www.nature.com/articles/nature24270.epdf?author_access_token=VJXbVjaSHxFoctQQ4p2k4tRgN0jAjWel9jnR3ZoTv0PVW4gB86EEpGqTRDtpIz-2rmo8-KG06gqVobU5NSCFeHILHcVFUeMsbvwS-lxjqQGg98faovwjxeTUgZAUMnRQ).
 2) The <b>great</b> Reversi development of the DeepMind ideas that @mokemokechicken did in his repo: https://github.com/mokemokechicken/reversi-alpha-zero
-
-Note: <b>This project is still under construction!!</b>
-
-News
-----
-
-DeepMind just released today a new version of their AlphaGo Zero idea (named now AlphaZero) where they mastering chess from scratch: 
+3) DeepMind just released a new version of AlphaGo Zero (named now AlphaZero) where they master chess from scratch: 
 https://arxiv.org/pdf/1712.01815.pdf. In fact, in chess AlphaZero outperformed Stockfish after just 4 hours (300k steps) Wow!
 
-There are new ideas we have to take into account for this project. It seems, for example, that two planes for feeding the input model are not enough.
+Note: <b>This project is still under construction!!</b>
 
 Environment
 -----------
@@ -36,11 +30,16 @@ Here we have a game trained by @bame55 (AI plays white):
 
 ![partida3](https://user-images.githubusercontent.com/17341905/34030278-8796f7c6-e16c-11e7-9ba4-97af15f2cde5.gif)
 
-This model plays in this way after only 5 epoch iterations of the 'opt' worker, the 'eval' worker changed 4 times the best model (4 of 5). At this moment the loss of the 'opt' worker is 5.1 (and still seems to be converging very well).
 
-As I have not GPU, I had to evaluate ('eval') using only "self.simulation_num_per_move = 10" and only 10 files of play data for the 'opt' worker. I'm pretty sure if anybody is able to run in a good GPU with a more powerful configuration the results after complete convergence would be really good.
+Modules
+-------
 
-### New Supervised Learning Training Pipeline
+### Supervised Learning
+
+
+```bash
+python src/chess_zero/run.py sl
+```
 
 I've done a supervised learning new pipeline step (to use those human games files "PGN" we can find in internet as play-data generator).
 This SL step was also used in the first and original version of AlphaGo and maybe chess is a some complex game that we have to pre-train first the policy model before starting the self-play process (i.e., maybe chess is too much complicated for a self training alone).
@@ -50,14 +49,18 @@ Once the model converges enough with SL play-data we just stop the worker "sl" a
 
 If you want to use this new SL step you will have to download from internet big PGN files (chess files) and paste them into the "data/play_data" folder.
 
-Supervised Learning
--------------------
+**To avoid overfitting, I recommend using data sets of at least 3000 games and running at most 3-4 epochs.**
 
-```bash
-python src/chess_zero/run.py sl
-```
+### Reinforcement Learning
 
-### New Distributed Training Pipeline
+This AlphaGo Zero implementation consists of three workers: `self`, `opt` and `eval`.
+
+* `self` is Self-Play to generate training data by self-play using BestModel.
+* `opt` is Trainer to train model, and generate next-generation models.
+* `eval` is Evaluator to evaluate whether the next-generation model is better than BestModel. If better, replace BestModel.
+
+
+### Distributed Training
 
 Now it's possible to train the model in a distributed way. The only thing needed is to use the new parameter:
 
@@ -70,18 +73,6 @@ python src/chess_zero/run.py self --type distributed (or python src/chess_zero/r
 python src/chess_zero/run.py opt --type distributed
 python src/chess_zero/run.py eval --type distributed
 ```
-
-Modules
--------
-
-### Reinforcement Learning
-
-This AlphaGo Zero implementation consists of three workers: `self`, `opt` and `eval`.
-
-* `self` is Self-Play to generate training data by self-play using BestModel.
-* `opt` is Trainer to train model, and generate next-generation models.
-* `eval` is Evaluator to evaluate whether the next-generation model is better than BestModel. If better, replace BestModel.
-
 
 ### GUI
 * `uci` launches the Universal Chess Interface, for use in a GUI.
@@ -116,12 +107,7 @@ If you want to use GPU,
 pip install tensorflow-gpu
 ```
 
-### set environment variables
-Create `.env` file and write this.
-
-```text:.env
-KERAS_BACKEND=tensorflow
-```
+Make sure Keras is using Tensorflow and you have Python 3.6.3+.
 
 
 Basic Usage
@@ -189,14 +175,3 @@ self.vram_frac = 1.0
 
 Smaller batch_size will reduce memory usage of `opt`.
 Try to change `TrainerConfig#batch_size` in `MiniConfig`.
-
-
-Model Performance
--------
-
-The following table is records of the best models.
-
-|best model generation|winning percentage to best model|Time Spent(hours)|note|
-|-----|-----|-----|-----|
-|1|-|-|&#12288;|
-
