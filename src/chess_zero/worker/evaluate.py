@@ -50,14 +50,14 @@ class EvaluateWorker:
             for game_idx in range(self.config.eval.game_num):
                 fut = executor.submit(play_game, self.config, cur=self.cur_pipes, ng=ng_pipes, current_white=(game_idx % 2 == 0))
                 futures.append(fut)
-                
+
             results = []
             for fut in as_completed(futures):
                 # ng_score := if ng_model win -> 1, lose -> 0, draw -> 0.5
                 ng_score, env, current_white = fut.result()
                 results.append(ng_score)
                 win_rate = sum(results) / len(results)
-                game_idx = len(results) + 1
+                game_idx = len(results)
                 logger.debug(f"game {game_idx:3}: ng_score={ng_score:.1f} as {'black' if current_white else 'white'} "
                              f"{'by resign ' if env.resigned else '          '}"
                              f"win_rate={win_rate*100:5.1f}% "

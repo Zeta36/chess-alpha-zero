@@ -122,7 +122,7 @@ class ChessPlayer:
 		if env.done:
 			if env.winner == Winner.draw:
 				return 0
-			#assert env.whitewon != (env.board.turn == chess.WHITE) # side to move can't be winner!
+			#assert env.whitewon != env.white_to_move # side to move can't be winner!
 			return -1
 
 		state = state_key(env)
@@ -173,7 +173,7 @@ class ChessPlayer:
 		leaf_p, leaf_v = self.predict(state_planes)
 		# these are canonical policy and value (i.e. side to move is "white")
 
-		if env.board.turn == chess.BLACK:
+		if not env.white_to_move:
 			leaf_p = Config.flip_policy(leaf_p) # get it back to python-chess form
 		#np.testing.assert_array_equal(Config.flip_policy(Config.flip_policy(leaf_p)), leaf_p)  
 
