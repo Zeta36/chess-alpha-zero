@@ -11,10 +11,10 @@ logger = getLogger(__name__)
 Winner = enum.Enum("Winner", "black white draw")
 
 # input planes
-pieces_order = 'KQRBNPkqrbnp'
-castling_order = 'KQkq'
-# fifty-move-rule
-# en passant
+pieces_order = 'KQRBNPkqrbnp' # 12x8x8
+castling_order = 'KQkq'       # 4x8x8
+# fifty-move-rule             # 1x8x8
+# en en_passant               # 1x8x8
 
 ind = {pieces_order[i]: i for i in range(12)}
 
@@ -58,8 +58,8 @@ class ChessEnv:
         :return:
         """
         if check_over and action is None:
-            self._resigned()
-            return self.board, {}
+            self._resign()
+            return
 
         self.board.push_uci(action)
 
@@ -67,8 +67,6 @@ class ChessEnv:
 
         if check_over and self.board.result(claim_draw=True) != "*":
             self._game_over()
-
-        return self.board, {}
 
     def _game_over(self):
         if self.winner is None:
@@ -80,21 +78,16 @@ class ChessEnv:
             else:
                 self.winner = Winner.draw
 
-    def _resigned(self):
-        self._win_another_player()
-        self._game_over()
+    def _resign(self):
         self.resigned = True
-
-    def _win_another_player(self):
-        if self.board.turn == chess.BLACK:
-            self.winner = Winner.black
-            self.result = "0-1"
-        else:
+        if self.white_to_move:
             self.winner = Winner.white
             self.result = "1-0"
+        else:
+            self.winner = Winner.black
+            self.result = "0-1"
 
     def adjudicate(self):
-        self.resigned = False
         score = self.testeval(absolute = True)
         if abs(score) < 0.01:
             self.winner = Winner.draw
@@ -107,20 +100,13 @@ class ChessEnv:
             self.result = "0-1"
 
     def ending_average_game(self):
-        self.resigned = False
         self.winner = Winner.draw
         self.result = "1/2-1/2"
-
-    def canonical_input_planes(self):
-        return canon_input_planes(self.board.fen())
 
     def copy(self):
         env = copy.copy(self)
         env.board = copy.copy(self.board)
         return env
-
-    def replace_tags(self):
-        return replace_tags_board(self.board.fen())
 
     def render(self):
         print("\n")
@@ -140,6 +126,12 @@ class ChessEnv:
             if fee == fen_next:
                 return mov.uci()
         return None
+
+    def replace_tags(self):
+        return replace_tags_board(self.board.fen())
+
+    def canonical_input_planes(self):
+        return canon_input_planes(self.board.fen())
 
     def testeval(self, absolute=False) -> float:
         return testeval(self.board.fen(), absolute)

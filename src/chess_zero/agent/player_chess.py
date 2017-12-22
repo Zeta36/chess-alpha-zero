@@ -14,8 +14,6 @@ from chess_zero.config import Config
 from chess_zero.env.chess_env import ChessEnv, Winner
 #from chess_zero.play_game.uci import info
 
-HistoryItem = namedtuple("HistoryItem", "action policy values visit")
-
 logger = getLogger(__name__)
 
 # these are from AGZ nature paper
@@ -32,7 +30,7 @@ class ActionStats:
 
 class ChessPlayer:
 	# dot = False
-	def __init__(self, config: Config, model=None, pipes=None, play_config=None, dummy=False):
+	def __init__(self, config: Config, pipes=None, play_config=None, dummy=False):
 		self.moves = []
 
 		self.config = config
@@ -43,10 +41,7 @@ class ChessPlayer:
 		if dummy:
 			return
 
-		if model:
-			self.pipe_pool = model.get_pipes(self.play_config.search_threads)
-		else:
-			self.pipe_pool = pipes
+		self.pipe_pool = pipes
 
 		self.thinking_history = {}  # for fun
 		self.node_lock = defaultdict(Lock)
@@ -92,9 +87,6 @@ class ChessPlayer:
 			self.moves.append([env.observation, list(policy)])
 			return self.config.labels[action]
 
-	def ask_thought_about(self, board) -> HistoryItem:
-		return self.thinking_history.get(board)
-
 	#@profile
 	def search_moves(self, env) -> (float, float):
 		# if ChessPlayer.dot == False:
@@ -107,7 +99,7 @@ class ChessPlayer:
 			for _ in range(self.play_config.simulation_num_per_move):
 				futures.append(executor.submit(self.search_my_move,env=env.copy(),is_root_node=True))
 
-		vals = [-f.result() for f in futures] #MINUS LOL
+		vals = [f.result() for f in futures]
 		#vals=[self.search_my_move(env.copy(),True) for _ in range(self.play_config.simulation_num_per_move)]
 
 		return np.max(vals), vals[0] # vals[0] is kind of racy
@@ -122,7 +114,7 @@ class ChessPlayer:
 		if env.done:
 			if env.winner == Winner.draw:
 				return 0
-			#assert env.whitewon != env.white_to_move # side to move can't be winner!
+			assert env.whitewon != env.white_to_move # side to move can't be winner!
 			return -1
 
 		state = state_key(env)
@@ -269,5 +261,5 @@ class ChessPlayer:
 			move += [z]
 
 def state_key(env: ChessEnv) -> str:
-	fen = env.board.fen().rsplit(' ',1) # drop the move clock
+	fen = env.board.fen().rsplit(' ', 1) # drop the move clock
 	return fen[0]

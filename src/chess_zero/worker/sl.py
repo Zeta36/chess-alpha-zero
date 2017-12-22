@@ -103,6 +103,7 @@ def get_buffer(config, game) -> (ChessEnv, list):
     whiteelo, blackelo = int(game.headers["WhiteElo"]), int(game.headers["BlackElo"])
     whiteweight = clip_elo_policy(config, whiteelo)
     blackweight = clip_elo_policy(config, blackelo)
+    
     actions = []
     while not game.is_end():
         game = game.variation(0)
@@ -113,7 +114,7 @@ def get_buffer(config, game) -> (ChessEnv, list):
             action = white.sl_action(env.observation, actions[k], weight= whiteweight) #ignore=True
         else:
             action = black.sl_action(env.observation, actions[k], weight= blackweight) #ignore=True
-        board, info = env.step(action, False)
+        env.step(action, False)
         k += 1
 
     if not env.board.is_game_over() and result != '1/2-1/2':

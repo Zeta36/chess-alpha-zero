@@ -17,7 +17,7 @@ class PlayDataConfig:
     def __init__(self):
         self.min_elo_policy =  500 # 0 weight
         self.max_elo_policy = 1800 # 1 weight
-        self.sl_nb_game_in_file = 100
+        self.sl_nb_game_in_file = 250
         self.nb_game_in_file = 50
         self.max_file_num = 150
 
@@ -45,7 +45,7 @@ class TrainerConfig:
         self.min_data_size_to_learn = 0
         self.cleaning_processes = 8 # RAM explosion...
         self.vram_frac = 1.0
-        self.batch_size = 512 # tune this to your gpu memory
+        self.batch_size = 384 # tune this to your gpu memory
         self.epoch_to_checkpoint = 1
         self.start_total_steps = 0
         self.save_model_steps = 25
@@ -57,7 +57,7 @@ class ModelConfig:
     cnn_filter_num = 256
     cnn_filter_size = 3
     res_layer_num = 7
-    l2_reg = 0 # experiment 1e-5 # I don't have much worry for overfitting with only 1-2 epochs/dataset
+    l2_reg = 1e-5 # I CANT EVEN SET THIS GO TO JSON !!!! I don't have much worry for overfitting with only 1-2 epochs/dataset
     value_fc_size = 256
     distributed = False
     input_depth = 18

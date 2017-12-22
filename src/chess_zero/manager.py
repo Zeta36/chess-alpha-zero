@@ -7,7 +7,7 @@ from .config import Config
 
 logger = getLogger(__name__)
 
-CMD_LIST = ['self', 'opt', 'eval', 'play_gui', 'sl','uci']
+CMD_LIST = ['self', 'opt', 'eval', 'sl', 'uci']
 
 
 def create_parser():
@@ -52,9 +52,6 @@ def start():
     elif args.cmd == 'sl':
         from .worker import sl
         return sl.start(config)
-    elif args.cmd == 'play_gui':
-        from .play_game import gui
-        return gui.start(config)
     elif args.cmd == 'uci':
         from .play_game import uci
         return uci.start(config)

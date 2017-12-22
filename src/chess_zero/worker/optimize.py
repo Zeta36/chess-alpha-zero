@@ -113,9 +113,9 @@ class OptimizeWorker:
             policy_ary.extend(p)
             value_ary.extend(v)
 
-        state_ary = np.asarray(state_ary,dtype=np.float32)
-        policy_ary = np.asarray(policy_ary,dtype=np.float32)
-        value_ary = np.asarray(value_ary,dtype=np.float32)
+        state_ary = np.asarray(state_ary, dtype=np.float32)
+        policy_ary = np.asarray(policy_ary, dtype=np.float32)
+        value_ary = np.asarray(value_ary, dtype=np.float32)
         return state_ary, policy_ary, value_ary
 
 
