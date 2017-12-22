@@ -1,11 +1,8 @@
+import ftplib
 import hashlib
 import json
-import urllib.request
-import ftplib
 import os
 from logging import getLogger
-# noinspection PyPep8Naming
-import keras.backend as k
 
 from keras.engine.topology import Input
 from keras.engine.training import Model
@@ -17,6 +14,8 @@ from keras.regularizers import l2
 
 from chess_zero.agent.api_chess import ChessModelAPI
 from chess_zero.config import Config
+
+# noinspection PyPep8Naming
 
 logger = getLogger(__name__)
 
@@ -105,7 +104,6 @@ class ChessModel:
                 ftp_connection.quit()
             except:
                 pass
-        from tensorflow import get_default_graph, reset_default_graph
         if os.path.exists(config_path) and os.path.exists(weight_path):
             logger.debug(f"loading model from {config_path}")
             with open(config_path, "rt") as f:

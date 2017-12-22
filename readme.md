@@ -3,7 +3,7 @@ About
 
 Chess reinforcement learning by [AlphaGo Zero](https://deepmind.com/blog/alphago-zero-learning-scratch/) methods.
 
-This project is based in two main resources:
+This project is based on two main resources:
 1) DeepMind's Oct 19th publication: [Mastering the Game of Go without Human Knowledge](https://www.nature.com/articles/nature24270.epdf?author_access_token=VJXbVjaSHxFoctQQ4p2k4tRgN0jAjWel9jnR3ZoTv0PVW4gB86EEpGqTRDtpIz-2rmo8-KG06gqVobU5NSCFeHILHcVFUeMsbvwS-lxjqQGg98faovwjxeTUgZAUMnRQ).
 2) The <b>great</b> Reversi development of the DeepMind ideas that @mokemokechicken did in his repo: https://github.com/mokemokechicken/reversi-alpha-zero
 
@@ -76,17 +76,12 @@ Modules
 
 ### Reinforcement Learning
 
-This AlphaGo Zero implementation consists of three worker `self`, `opt` and `eval`.
+This AlphaGo Zero implementation consists of three workers: `self`, `opt` and `eval`.
 
 * `self` is Self-Play to generate training data by self-play using BestModel.
 * `opt` is Trainer to train model, and generate next-generation models.
 * `eval` is Evaluator to evaluate whether the next-generation model is better than BestModel. If better, replace BestModel.
 
-### Evaluation
-
-For evaluation, you can play chess with the BestModel.
-
-* `play_gui` is Play Game vs BestModel using ASCII character encoding.
 
 ### GUI
 * `uci` launches the Universal Chess Interface, for use in a GUI.
@@ -129,7 +124,7 @@ KERAS_BACKEND=tensorflow
 ```
 
 
-Basic Usages
+Basic Usage
 ------------
 
 For training model, execute `Self-Play`, `Trainer` and `Evaluator`. 
@@ -158,7 +153,7 @@ python src/chess_zero/run.py opt
 
 When executed, Training will start.
 A base model will be loaded from latest saved next-generation model. If not existed, BestModel is used.
-Trained model will be saved every 2000 steps(mini-batch) after epoch. 
+Trained model will be saved every epoch. 
 
 ### options
 * `--type mini`: use mini config for testing, (see `src/chess_zero/configs/mini.py`)
@@ -179,7 +174,7 @@ If next-generation model wins, it becomes BestModel.
 * `--type mini`: use mini config for testing, (see `src/chess_zero/configs/mini.py`)
 
 
-Tips and Memo
+Tips and Memory
 ====
 
 GPU Memory
@@ -192,8 +187,8 @@ If error happens, try to change `vram_frac` in `src/configs/mini.py`,
 self.vram_frac = 1.0
 ```
 
-Less batch_size will reduce memory usage of `opt`.
-Try to change `TrainerConfig#batch_size` in `NormalConfig`.
+Smaller batch_size will reduce memory usage of `opt`.
+Try to change `TrainerConfig#batch_size` in `MiniConfig`.
 
 
 Model Performance

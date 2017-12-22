@@ -14,10 +14,11 @@ stacktracer.stop_trace()
 import sys
 import traceback
 from pygments import highlight
-from pygments.lexers import PythonLexer
 from pygments.formatters import HtmlFormatter
- 
- # Taken from http://bzimmer.ziclix.com/2008/12/17/python-thread-dumps/
+from pygments.lexers import PythonLexer
+
+
+# Taken from http://bzimmer.ziclix.com/2008/12/17/python-thread-dumps/
  
 def stacktraces():
     code = []

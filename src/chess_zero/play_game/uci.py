@@ -1,12 +1,14 @@
 import sys
 from logging import getLogger
-import chess
-from chess_zero.config import Config, PlayWithHumanConfig
+
 from chess_zero.agent.player_chess import ChessPlayer
+from chess_zero.config import Config, PlayWithHumanConfig
 from chess_zero.env.chess_env import ChessEnv
 
 logger = getLogger(__name__)
 
+
+# noinspection SpellCheckingInspection,SpellCheckingInspection,SpellCheckingInspection,SpellCheckingInspection,SpellCheckingInspection,SpellCheckingInspection
 def start(config: Config):
 
     PlayWithHumanConfig().update_play_config(config.play)

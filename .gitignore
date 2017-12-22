@@ -20,5 +20,3 @@ video/*
 *.h5
 logs/
 *.sh
-requirements.txt
-trace.html

@@ -1,18 +1,17 @@
 import os
+import re
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from datetime import datetime
 from logging import getLogger
+from threading import Thread
 from time import time
+
 import chess.pgn
-import re
+
 from chess_zero.agent.player_chess import ChessPlayer
 from chess_zero.config import Config
 from chess_zero.env.chess_env import ChessEnv, Winner
-from chess_zero.lib import tf_util
-from chess_zero.lib.data_helper import get_game_data_filenames, write_game_data_to_file, find_pgn_files
-from concurrent.futures import ProcessPoolExecutor, as_completed
-import random
-from threading import Thread    
-from collections import deque
+from chess_zero.lib.data_helper import write_game_data_to_file, find_pgn_files
 
 logger = getLogger(__name__)
 
@@ -20,21 +19,20 @@ TAG_REGEX = re.compile(r"^\[([A-Za-z0-9_]+)\s+\"(.*)\"\]\s*$")
 
 
 def start(config: Config):
-    return SupervisedLearningWorker(config, env=ChessEnv()).start()
+    return SupervisedLearningWorker(config).start()
 
 
 class SupervisedLearningWorker:
-    def __init__(self, config: Config, env=None):
+    def __init__(self, config: Config):
         """
         :param config:
-        :param ChessEnv|None env:
-        :param chess_zero.agent.model_chess.ChessModel|None model:
         """
         self.config = config
         self.buffer = []
 
     def start(self):
         self.buffer = []
+        # noinspection PyAttributeOutsideInit
         self.idx = 0
         start_time = time()
         with ProcessPoolExecutor(max_workers=7) as executor:
@@ -59,23 +57,9 @@ class SupervisedLearningWorker:
         print (files)
         games = []
         for filename in files:
-            games.extend(self.get_games_from_file(filename))
+            games.extend(get_games_from_file(filename))
         print("done reading")
         return games
-        # from itertools import chain
-        # return chain.from_iterable(self.read_file(filename) for filename in files)
-
-    def get_games_from_file(self,filename):
-        pgn = open(filename, errors='ignore')
-        offsets = list(chess.pgn.scan_offsets(pgn))
-        n = len(offsets)
-        print(f"found {n} games")
-        games = []
-        for offset in offsets:
-            pgn.seek(offset)
-            games.append(chess.pgn.read_game(pgn))
-        return games
-        # return self.executor.map(get_buffer, games, [self.config]*n, chunksize=self.config.play_data.sl_nb_game_in_file)
 
     def save_data(self, data):
         self.buffer += data
@@ -91,6 +75,17 @@ class SupervisedLearningWorker:
         thread.start()
         self.buffer = []
 
+def get_games_from_file(filename):
+    pgn = open(filename, errors='ignore')
+    offsets = list(chess.pgn.scan_offsets(pgn))
+    n = len(offsets)
+    print(f"found {n} games")
+    games = []
+    for offset in offsets:
+        pgn.seek(offset)
+        games.append(chess.pgn.read_game(pgn))
+    return games
+
 def clip_elo_policy(config, elo):
     return min(1, max(0, elo - config.play_data.min_elo_policy) / config.play_data.max_elo_policy)
     # 0 until min_elo, 1 after max_elo, linear in between
@@ -100,9 +95,9 @@ def get_buffer(config, game) -> (ChessEnv, list):
     white = ChessPlayer(config, dummy = True)
     black = ChessPlayer(config, dummy = True)
     result = game.headers["Result"]
-    whiteelo, blackelo = int(game.headers["WhiteElo"]), int(game.headers["BlackElo"])
-    whiteweight = clip_elo_policy(config, whiteelo)
-    blackweight = clip_elo_policy(config, blackelo)
+    white_elo, black_elo = int(game.headers["WhiteElo"]), int(game.headers["BlackElo"])
+    white_weight = clip_elo_policy(config, white_elo)
+    black_weight = clip_elo_policy(config, black_elo)
     
     actions = []
     while not game.is_end():
@@ -111,9 +106,9 @@ def get_buffer(config, game) -> (ChessEnv, list):
     k = 0
     while not env.done and k < len(actions):
         if env.white_to_move:
-            action = white.sl_action(env.observation, actions[k], weight= whiteweight) #ignore=True
+            action = white.sl_action(env.observation, actions[k], weight= white_weight) #ignore=True
         else:
-            action = black.sl_action(env.observation, actions[k], weight= blackweight) #ignore=True
+            action = black.sl_action(env.observation, actions[k], weight= black_weight) #ignore=True
         env.step(action, False)
         k += 1
 

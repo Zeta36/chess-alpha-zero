@@ -1,17 +1,15 @@
 import os
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from logging import getLogger
+from multiprocessing import Manager
 from time import sleep
-import chess
+
 from chess_zero.agent.model_chess import ChessModel
 from chess_zero.agent.player_chess import ChessPlayer
 from chess_zero.config import Config
 from chess_zero.env.chess_env import ChessEnv, Winner
-from chess_zero.lib import tf_util
-from chess_zero.lib.data_helper import get_next_generation_model_dirs, prettyprint
+from chess_zero.lib.data_helper import get_next_generation_model_dirs, pretty_print
 from chess_zero.lib.model_helper import save_as_best_model, load_best_model_weight
-from multiprocessing.pool import Pool
-from multiprocessing import Manager
-from concurrent.futures import ProcessPoolExecutor, as_completed
 
 logger = getLogger(__name__)
 
@@ -35,12 +33,12 @@ class EvaluateWorker:
             ng_model, model_dir = self.load_next_generation_model()
             logger.debug(f"start evaluate model {model_dir}")
             ng_is_great = self.evaluate_model(ng_model)
-            break
             if ng_is_great:
                 logger.debug(f"New Model become best model: {model_dir}")
+                self.move_model(self.config.resource.model_dir)
                 save_as_best_model(ng_model)
                 self.current_model = ng_model
-            #self.remove_model(model_dir) # i lost my models because of this :(
+            self.move_model(model_dir) # i lost my models because of this :(
 
     def evaluate_model(self, ng_model):
         ng_pipes = self.m.list([ng_model.get_pipes(self.play_config.search_threads) for _ in range(self.play_config.max_processes)])
@@ -66,7 +64,7 @@ class EvaluateWorker:
                 colors = ("current_model", "ng_model")
                 if not current_white:
                     colors = reversed(colors)
-                prettyprint(env, colors)
+                pretty_print(env, colors)
 
                 if results.count(0) >= self.config.eval.game_num * (1-self.config.eval.replace_rate):
                     logger.debug(f"lose count reach {results.count(0)} so give up challenge")
@@ -79,14 +77,14 @@ class EvaluateWorker:
         logger.debug(f"winning rate {win_rate*100:.1f}%")
         return win_rate >= self.config.eval.replace_rate
 
-    def remove_model(self, model_dir):
-        return  # dont you dare
+    def move_model(self, model_dir):
         rc = self.config.resource
-        config_path = os.path.join(model_dir, rc.next_generation_model_config_filename)
-        weight_path = os.path.join(model_dir, rc.next_generation_model_weight_filename)
-        os.remove(config_path)
-        os.remove(weight_path)
-        os.rmdir(model_dir)
+        # config_path = os.path.join(model_dir, rc.next_generation_model_config_filename)
+        # weight_path = os.path.join(model_dir, rc.next_generation_model_weight_filename)
+        # os.remove(config_path)
+        # os.remove(weight_path)
+        new_dir = os.path.join(rc.model_dir, "copies", model_dir.name)
+        os.rename(model_dir, new_dir)
 
     def load_current_model(self):
         model = ChessModel(self.config)
@@ -131,7 +129,7 @@ def play_game(config, cur, ng, current_white: bool) -> (float, ChessEnv, bool):
 
     if env.winner == Winner.draw:
         ng_score = 0.5
-    elif env.whitewon == current_white:
+    elif env.white_won == current_white:
         ng_score = 0
     else:
         ng_score = 1

@@ -11,6 +11,7 @@ logger = getLogger(__name__)
 Winner = enum.Enum("Winner", "black white draw")
 
 # input planes
+# noinspection SpellCheckingInspection
 pieces_order = 'KQRBNPkqrbnp' # 12x8x8
 castling_order = 'KQkq'       # 4x8x8
 # fifty-move-rule             # 1x8x8
@@ -45,7 +46,7 @@ class ChessEnv:
         return self.winner is not None
 
     @property
-    def whitewon(self):
+    def white_won(self):
         return self.winner == Winner.white
 
     @property
@@ -54,7 +55,8 @@ class ChessEnv:
 
     def step(self, action: str, check_over = True):
         """
-        :param int|None action, None is resign
+        :param action:
+        :param check_over:
         :return:
         """
         if check_over and action is None:
@@ -137,21 +139,21 @@ class ChessEnv:
         return testeval(self.board.fen(), absolute)
 
 def testeval(fen, absolute = False) -> float:
-    piecevals = {'K': 3, 'Q': 14, 'R': 5,'B': 3.25,'N': 3,'P': 1} # somehow it doesn't know how to keep its queen
+    piece_vals = {'K': 3, 'Q': 14, 'R': 5,'B': 3.25,'N': 3,'P': 1} # somehow it doesn't know how to keep its queen
     ans = 0.0
     tot = 0
     for c in fen.split(' ')[0]:
         if not c.isalpha():
             continue
-        #assert c.upper() in piecevals   
+        #assert c.upper() in piece_vals
         if c.isupper():
-            ans += piecevals[c]
-            tot += piecevals[c]
+            ans += piece_vals[c]
+            tot += piece_vals[c]
         else:
-            ans -= piecevals[c.upper()]
-            tot += piecevals[c.upper()]
+            ans -= piece_vals[c.upper()]
+            tot += piece_vals[c.upper()]
     v = ans/tot
-    if not absolute and isblackturn(fen):
+    if not absolute and is_black_turn(fen):
         v = -v
     assert abs(v) < 1
     return np.tanh(v * 3) # arbitrary
@@ -185,7 +187,7 @@ def check_current_planes(realfen, planes):
             if ep[rank][file] == 1:
                 epstr = coord_to_alg((rank, file))
 
-    realfen = maybe_flip_fen(realfen, flip=isblackturn(realfen))
+    realfen = maybe_flip_fen(realfen, flip=is_black_turn(realfen))
     realparts = realfen.split(' ')
     assert realparts[1] == 'w'
     assert realparts[2] == castlingstring
@@ -195,7 +197,7 @@ def check_current_planes(realfen, planes):
     return "".join(fakefen) == replace_tags_board(realfen)
 
 def canon_input_planes(fen):
-    fen = maybe_flip_fen(fen, isblackturn(fen))
+    fen = maybe_flip_fen(fen, is_black_turn(fen))
     return all_input_planes(fen)
 
 def all_input_planes(fen):
@@ -208,7 +210,7 @@ def all_input_planes(fen):
     return ret
 
 def maybe_flip_fen(fen, flip = False):
-    if flip == False:
+    if not flip:
         return fen
     foo = fen.split(' ')
     rows = foo[0].split('/')
@@ -235,11 +237,11 @@ def aux_planes(fen):
     fifty_move = np.full((8,8), fifty_move_count, dtype=np.float32)
 
     castling = foo[2]
-    auxiliary_planes = [np.full((8,8), int('K' in castling), dtype=np.float32), \
-                        np.full((8,8), int('Q' in castling), dtype=np.float32), \
-                        np.full((8,8), int('k' in castling), dtype=np.float32), \
-                        np.full((8,8), int('q' in castling), dtype=np.float32), \
-                        fifty_move, \
+    auxiliary_planes = [np.full((8,8), int('K' in castling), dtype=np.float32),
+                        np.full((8,8), int('Q' in castling), dtype=np.float32),
+                        np.full((8,8), int('k' in castling), dtype=np.float32),
+                        np.full((8,8), int('q' in castling), dtype=np.float32),
+                        fifty_move,
                         en_passant]
 
     ret = np.asarray(auxiliary_planes, dtype=np.float32)
@@ -268,7 +270,7 @@ def aux_planes(fen):
 def alg_to_coord(alg):
     rank = 8 - int(alg[1])        # 0-7
     file = ord(alg[0]) - ord('a') # 0-7
-    return (rank, file)
+    return rank, file
 
 def coord_to_alg(coord):
     letter = chr(ord('a') + coord[1])
@@ -297,5 +299,5 @@ def replace_tags_board(board_san):
     board_san = board_san.replace("8", "11111111")
     return board_san.replace("/", "")
 
-def isblackturn(fen):
+def is_black_turn(fen):
     return fen.split(" ")[1] == 'b'

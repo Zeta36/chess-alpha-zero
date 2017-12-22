@@ -1,22 +1,17 @@
 import os
+from collections import deque
+from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
 from logging import getLogger
 from time import sleep
-import random
-
-from profilehooks import profile
 
 import numpy as np
 
 from chess_zero.agent.model_chess import ChessModel
 from chess_zero.config import Config
-from chess_zero.lib import tf_util
+from chess_zero.env.chess_env import canon_input_planes, is_black_turn, testeval
 from chess_zero.lib.data_helper import get_game_data_filenames, read_game_data_from_file, get_next_generation_model_dirs
 from chess_zero.lib.model_helper import load_best_model_weight
-from chess_zero.env.chess_env import ChessEnv, canon_input_planes, check_current_planes, isblackturn, testeval
-import chess
-from concurrent.futures import ProcessPoolExecutor
-from collections import deque
 
 logger = getLogger(__name__)
 
@@ -73,7 +68,7 @@ class OptimizeWorker:
         return steps
 
     def compile_model(self):
-        from keras.optimizers import SGD, Adam
+        from keras.optimizers import Adam
         self.optimizer = Adam() #SGD(lr=2e-1, momentum=0.9) # Adam better?
         losses = ['categorical_crossentropy', 'mean_squared_error'] # avoid overfit for supervised 
         self.model.model.compile(optimizer=self.optimizer, loss=losses, loss_weights=self.config.trainer.loss_weights)
@@ -141,7 +136,7 @@ class OptimizeWorker:
         # try:
         logger.debug(f"loading data from {filename}")
         data = read_game_data_from_file(filename)
-        self.loaded_data.append( self.executor.submit(convert_to_cheating_data, data) )### HEEEERE, use with SL
+        self.loaded_data.append( self.executor.submit(convert_to_cheating_data, data) )### HERE, use with SL
         self.loaded_filenames.add(filename)
         # except Exception as e:
         #     logger.warning(str(e))
@@ -170,7 +165,7 @@ def convert_to_cheating_data(data):
         state_planes = canon_input_planes(state_fen)
         #assert check_current_planes(state_fen, state_planes)
 
-        if isblackturn(state_fen):
+        if is_black_turn(state_fen):
             policy = Config.flip_policy(policy)
 
         # assert len(policy) == 1968
@@ -179,10 +174,10 @@ def convert_to_cheating_data(data):
 
         move_number = int(state_fen.split(' ')[5])
         value_certainty = min(5, move_number)/5 # reduces the noise of the opening... plz train faster
-        SL_value = value*value_certainty + testeval(state_fen, False)*(1-value_certainty)
+        sl_value = value*value_certainty + testeval(state_fen, False)*(1-value_certainty)
 
         state_list.append(state_planes)
         policy_list.append(policy)
-        value_list.append(SL_value)
+        value_list.append(sl_value)
 
     return np.asarray(state_list, dtype=np.float32), np.asarray(policy_list, dtype=np.float32), np.asarray(value_list, dtype=np.float32)

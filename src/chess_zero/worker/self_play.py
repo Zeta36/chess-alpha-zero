@@ -1,34 +1,31 @@
 import os
+from collections import deque
+from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
 from logging import getLogger
+from multiprocessing import Manager
+from threading import Thread
 from time import time
-import chess
-from concurrent.futures import ProcessPoolExecutor, as_completed
-from chess_zero.agent.player_chess import ChessPlayer
+
 from chess_zero.agent.model_chess import ChessModel
+from chess_zero.agent.player_chess import ChessPlayer
 from chess_zero.config import Config
 from chess_zero.env.chess_env import ChessEnv, Winner
-from chess_zero.lib import tf_util
-from chess_zero.lib.data_helper import get_game_data_filenames, write_game_data_to_file, prettyprint
+from chess_zero.lib.data_helper import get_game_data_filenames, write_game_data_to_file, pretty_print
 from chess_zero.lib.model_helper import load_best_model_weight, save_as_best_model, \
     reload_best_model_weight_if_changed
-from multiprocessing import Manager
-from collections import deque
-from threading import Thread
-
-import numpy as np
 
 logger = getLogger(__name__)
 
 def start(config: Config):
     return SelfPlayWorker(config).start()
 
+
+# noinspection PyAttributeOutsideInit
 class SelfPlayWorker:
     def __init__(self, config: Config):
         """
         :param config:
-        :param ChessEnv|None env:
-        :param chess_zero.agent.model_chess.ChessModel|None model:
         """
         self.config = config
         self.current_model = self.load_model()
@@ -51,7 +48,7 @@ class SelfPlayWorker:
                     f"halfmoves={env.num_halfmoves:3} {env.winner:12} "
                     f"{'by resign ' if env.resigned else '          '}")
 
-                prettyprint(env, ("current_model", "current_model"))
+                pretty_print(env, ("current_model", "current_model"))
                 self.buffer += data
                 if (game_idx % self.config.play_data.nb_game_in_file) == 0:
                     self.flush_buffer()

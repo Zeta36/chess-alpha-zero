@@ -1,13 +1,14 @@
 import os
 import numpy as np
 
+
 class PlayWithHumanConfig:
     def __init__(self):
         self.simulation_num_per_move = 800
         self.thinking_loop = 1
         self.logging_thinking = True
         self.noise_eps = 0
-        self.tau_decay_rate = 0 # start deterministic mode
+        self.tau_decay_rate = 0  # start deterministic mode
         self.resign_threshold = None
 
     def update_play_config(self, pc):
@@ -32,11 +33,13 @@ def _project_dir():
 def _data_dir():
     return os.path.join(_project_dir(), "data")
 
+
 def flipped_uci_labels():
     def repl(x):
-        return "".join([(str(9-int(a)) if a.isdigit() else a) for a in x])
-        
-    return  [repl(x) for x in create_uci_labels()]
+        return "".join([(str(9 - int(a)) if a.isdigit() else a) for a in x])
+
+    return [repl(x) for x in create_uci_labels()]
+
 
 def create_uci_labels():
     labels_array = []
@@ -50,7 +53,8 @@ def create_uci_labels():
                            [(l1, t) for t in range(8)] + \
                            [(l1 + t, n1 + t) for t in range(-7, 8)] + \
                            [(l1 + t, n1 - t) for t in range(-7, 8)] + \
-                           [(l1 + a, n1 + b) for (a, b) in [(-2, -1), (-1, -2), (-2, 1), (1, -2), (2, -1), (-1, 2), (2, 1), (1, 2)]]
+                           [(l1 + a, n1 + b) for (a, b) in
+                            [(-2, -1), (-1, -2), (-2, 1), (1, -2), (2, -1), (-1, 2), (2, 1), (1, 2)]]
             for (l2, n2) in destinations:
                 if (l1, n1) != (l2, n2) and l2 in range(8) and n2 in range(8):
                     move = letters[l1] + numbers[n1] + letters[l2] + numbers[n2]
@@ -102,7 +106,10 @@ class Config:
     def flip_policy(pol):
         return np.asarray([pol[ind] for ind in Config.unflipped_index])
 
+
 Config.unflipped_index = [Config.labels.index(x) for x in Config.flipped_labels]
+
+
 # print(Config.labels)
 # print(Config.flipped_labels)
 
@@ -114,7 +121,7 @@ class ResourceConfig:
     def __init__(self):
         self.project_dir = os.environ.get("PROJECT_DIR", _project_dir())
         self.data_dir = os.environ.get("DATA_DIR", _data_dir())
-        
+
         self.model_dir = os.environ.get("MODEL_DIR", os.path.join(self.data_dir, "model"))
         self.model_best_config_path = os.path.join(self.model_dir, "model_best_config.json")
         self.model_best_weight_path = os.path.join(self.model_dir, "model_best_weight.h5")

@@ -1,17 +1,14 @@
+from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
-from collections import defaultdict, namedtuple
 from logging import getLogger
-from threading import Thread, Lock
+from threading import Lock
 
-from profilehooks import profile
-
-import time
-
-import numpy as np
 import chess
+import numpy as np
 
 from chess_zero.config import Config
 from chess_zero.env.chess_env import ChessEnv, Winner
+
 #from chess_zero.play_game.uci import info
 
 logger = getLogger(__name__)
@@ -45,49 +42,47 @@ class ChessPlayer:
 
 		self.thinking_history = {}  # for fun
 		self.node_lock = defaultdict(Lock)
-		self.reset()
 
-	# we are leaking memory + losing MCTS nodes...!! (without this)
 	def reset(self):
 		self.tree = defaultdict(VisitStats)
 
 	def deboog(self, env):
 		print(env.testeval())
-		
+
 		state = state_key(env)
-		my_visitstats = self.tree[state]
+		my_visit_stats = self.tree[state]
 		stats = []
-		for action, a_s in my_visitstats.a.items():
+		for action, a_s in my_visit_stats.a.items():
 			moi = self.move_lookup[action]
 			stats.append(np.asarray([a_s.n, a_s.w, a_s.q, a_s.p, moi]))
 		stats = np.asarray(stats)
 		a = stats[stats[:,0].argsort()[::-1]]
 
 		for s in a:
-			print(f"{self.labels[int(s[4])]:5}: "
-				f"n: {s[0]:3.0f} "
-				f"w: {s[1]:7.3f} "
-				f"q: {s[2]:7.3f} "
-				f"p: {s[3]:7.5f}")
+			print(f'{self.labels[int(s[4])]:5}: '
+				  f'n: {s[0]:3.0f} '
+				  f'w: {s[1]:7.3f} '
+				  f'q: {s[2]:7.3f} '
+				  f'p: {s[3]:7.5f}')
 
 	def action(self, env, can_stop = True) -> str:
 		self.reset()
 
-		for tl in range(self.play_config.thinking_loop):
-			root_value, naked_value = self.search_moves(env)
-			policy = self.calc_policy(env)
-			action = int(np.random.choice(range(self.labels_n), p = self.apply_temperature(policy, env.num_halfmoves)))
+		# for tl in range(self.play_config.thinking_loop):
+		root_value, naked_value = self.search_moves(env)
+		policy = self.calc_policy(env)
+		my_action = int(np.random.choice(range(self.labels_n), p = self.apply_temperature(policy, env.num_halfmoves)))
 		#print(naked_value)
 		#self.deboog(env)
 		if can_stop and self.play_config.resign_threshold is not None and \
 						root_value <= self.play_config.resign_threshold \
 						and env.num_halfmoves > self.play_config.min_resign_turn:
+			# noinspection PyTypeChecker
 			return None
 		else:
 			self.moves.append([env.observation, list(policy)])
-			return self.config.labels[action]
+			return self.config.labels[my_action]
 
-	#@profile
 	def search_moves(self, env) -> (float, float):
 		# if ChessPlayer.dot == False:
 		#     import stacktracer
@@ -104,7 +99,6 @@ class ChessPlayer:
 
 		return np.max(vals), vals[0] # vals[0] is kind of racy
 
-	#@profile
 	def search_my_move(self, env: ChessEnv, is_root_node=False) -> float:
 		"""
 		Q, V is value for this Player(always white).
@@ -114,7 +108,7 @@ class ChessPlayer:
 		if env.done:
 			if env.winner == Winner.draw:
 				return 0
-			assert env.whitewon != env.white_to_move # side to move can't be winner!
+			# assert env.whitewon != env.white_to_move # side to move can't be winner!
 			return -1
 
 		state = state_key(env)
@@ -131,10 +125,10 @@ class ChessPlayer:
 
 			virtual_loss = self.play_config.virtual_loss
 
-			my_visitstats = self.tree[state]
-			my_stats = my_visitstats.a[action_t]
+			my_visit_stats = self.tree[state]
+			my_stats = my_visit_stats.a[action_t]
 
-			my_visitstats.sum_n += virtual_loss
+			my_visit_stats.sum_n += virtual_loss
 			my_stats.n += virtual_loss
 			my_stats.w += -virtual_loss
 			my_stats.q = my_stats.w / my_stats.n
@@ -147,14 +141,13 @@ class ChessPlayer:
 		# on returning search path
 		# update: N, W, Q
 		with self.node_lock[state]:
-			my_visitstats.sum_n += -virtual_loss + 1
+			my_visit_stats.sum_n += -virtual_loss + 1
 			my_stats.n += -virtual_loss + 1
 			my_stats.w += virtual_loss + leaf_v
 			my_stats.q = my_stats.w / my_stats.n
 
 		return leaf_v
 
-	#@profile
 	def expand_and_evaluate(self, env) -> (np.ndarray, float):
 		""" expand new leaf, this is called only once per state
 		this is called with state locked
@@ -167,7 +160,7 @@ class ChessPlayer:
 
 		if not env.white_to_move:
 			leaf_p = Config.flip_policy(leaf_p) # get it back to python-chess form
-		#np.testing.assert_array_equal(Config.flip_policy(Config.flip_policy(leaf_p)), leaf_p)  
+		#np.testing.assert_array_equal(Config.flip_policy(Config.flip_policy(leaf_p)), leaf_p)
 
 		return leaf_p, leaf_v
 
@@ -196,7 +189,7 @@ class ChessPlayer:
 			my_visitstats.p = None
 
 		# noinspection PyUnresolvedReferences
-		xx_ = np.sqrt(my_visitstats.sum_n + 1)  # SQRT of sum(N(s, b); for all b)
+		xx_ = np.sqrt(my_visitstats.sum_n + 1)  # sqrt of sum(N(s, b); for all b)
 
 		e = self.play_config.noise_eps
 		c_puct = self.play_config.c_puct
@@ -243,17 +236,18 @@ class ChessPlayer:
 		policy /= np.sum(policy)
 		return policy
 
-	def sl_action(self, observation, action, weight=1):
+	def sl_action(self, observation, my_action, weight=1):
 		policy = np.zeros(self.labels_n)
 
-		k = self.move_lookup[chess.Move.from_uci(action)] 
+		k = self.move_lookup[chess.Move.from_uci(my_action)]
 		policy[k] = weight
 
 		self.moves.append([observation, list(policy)])
-		return action
+		return my_action
 
 	def finish_game(self, z):
 		"""
+		:param self:
 		:param z: win=1, lose=-1, draw=0
 		:return:
 		"""
