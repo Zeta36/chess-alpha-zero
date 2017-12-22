@@ -18,24 +18,18 @@ Environment
 * tensorflow-gpu: 1.3.0
 * Keras: 2.0.8
 
-### First "good" results
+### Results so far
 
-Using the new supervised learning step I created, I've been able to train a model to the point that seems to be learning the openings of chess. Also it seems the model starts to avoid losing naively pieces.
+Using supervised learning on about 10k games, I trained a model (7 residual blocks of 256 filters) to a guesstimate of 1200 elo with 1200 sims/move. One of the strengths of MCTS is it scales quite well with computing power.
 
-Here you can see an example of a game played for me against this model (AI plays black):
- 
-![partida1](https://user-images.githubusercontent.com/17341905/33597844-ea53c8ae-d9a0-11e7-8564-4b9b0f35a221.gif)
+Here you can see an example of a game I (white, ~2000 elo) played against the model in this repo (black):
 
-Here we have a game trained by @bame55 (AI plays white):
-
-![partida3](https://user-images.githubusercontent.com/17341905/34030278-8796f7c6-e16c-11e7-9ba4-97af15f2cde5.gif)
-
+![img](https://i.imgur.com/gwgHrbg.gif)
 
 Modules
 -------
 
 ### Supervised Learning
-
 
 I've done a supervised learning new pipeline step (to use those human games files "PGN" we can find in internet as play-data generator).
 This SL step was also used in the first and original version of AlphaGo and maybe chess is a some complex game that we have to pre-train first the policy model before starting the self-play process (i.e., maybe chess is too much complicated for a self training alone).
