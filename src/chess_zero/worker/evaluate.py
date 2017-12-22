@@ -49,36 +49,34 @@ class EvaluateWorker:
         with ProcessPoolExecutor(max_workers=self.play_config.max_processes) as executor:
             for game_idx in range(self.config.eval.game_num):
                 futures.append(executor.submit(play_game, self.config, self.current_pipes, ng_pipes, game_idx % 2 == 0))
-
+# here herer
         # pool = Pool(processes=self.play_config.max_processes, initializer=setpipes, initargs=(self.current_pipes, ng_pipes))
         # for game_idx in range(self.config.eval.game_num):
         #     futures.append(pool.apply_async(play_game, args=(self.config, game_idx % 2 == 0)))
-        print('aaa')
-        results = []
-        win_rate = 0
-        game_idx = 0
-        for fut in as_completed(futures):
-            # ng_score := if ng_model win -> 1, lose -> 0, draw -> 0.5
-            ng_score, env, current_white = fut.result()           
-            results.append(ng_score)
-            win_rate = sum(results) / len(results)
-            logger.debug(f"game {game_idx:3}: ng_score={ng_score:.1f} as {'black' if current_white else 'white'} "
-                         f"{'by resign ' if env.resigned else '          '}"
-                         f"win_rate={win_rate*100:5.1f}% "
-                         f"{env.board.fen()}")
-            colors = ("current_model", "ng_model")
-            if not current_white:
-                colors=reversed(colors)
+            results = []
+            win_rate = 0
+            for fut in as_completed(futures):
+                # ng_score := if ng_model win -> 1, lose -> 0, draw -> 0.5
+                ng_score, env, current_white = fut.result()
+                results.append(ng_score)
+                win_rate = sum(results) / len(results)
+                game_idx = len(results)
+                logger.debug(f"game {game_idx:3}: ng_score={ng_score:.1f} as {'black' if current_white else 'white'} "
+                             f"{'by resign ' if env.resigned else '          '}"
+                             f"win_rate={win_rate*100:5.1f}% "
+                             f"{env.board.fen()}")
+                colors = ("current_model", "ng_model")
+                if not current_white:
+                    colors=reversed(colors)
 
-            prettyprint(env, colors)
+                prettyprint(env, colors)
 
-            if results.count(0) >= self.config.eval.game_num * (1-self.config.eval.replace_rate):
-                logger.debug(f"lose count reach {results.count(0)} so give up challenge")
-                break
-            if results.count(1) >= self.config.eval.game_num * self.config.eval.replace_rate:
-                logger.debug(f"win count reach {results.count(1)} so change best model")
-                break
-            game_idx += 1
+                if results.count(0) >= self.config.eval.game_num * (1-self.config.eval.replace_rate):
+                    logger.debug(f"lose count reach {results.count(0)} so give up challenge")
+                    break
+                if results.count(1) >= self.config.eval.game_num * self.config.eval.replace_rate:
+                    logger.debug(f"win count reach {results.count(1)} so change best model")
+                    break
 
         win_rate = sum(results) / len(results)
         logger.debug(f"winning rate {win_rate*100:.1f}%")
@@ -148,5 +146,4 @@ def play_game(config, cur, ng, current_white: bool) -> (float, ChessEnv):
         ng_score = 1
     cur.append(current_pipes)
     ng.append(ng_pipes)
-    print(ng_score)
     return ng_score, env, current_white
