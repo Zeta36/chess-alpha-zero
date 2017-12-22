@@ -50,10 +50,7 @@ class EvaluateWorker:
             for game_idx in range(self.config.eval.game_num):
                 fut = executor.submit(play_game, self.config, cur=self.cur_pipes, ng=ng_pipes, current_white=(game_idx % 2 == 0))
                 futures.append(fut)
-# here herer
-        # pool = Pool(processes=self.play_config.max_processes, initializer=setpipes, initargs=(self.cur_pipes, ng_pipes))
-        # for game_idx in range(self.config.eval.game_num):
-        #     futures.append(pool.apply_async(play_game, args=(self.config, game_idx % 2 == 0)))
+                
             results = []
             for fut in as_completed(futures):
                 # ng_score := if ng_model win -> 1, lose -> 0, draw -> 0.5
