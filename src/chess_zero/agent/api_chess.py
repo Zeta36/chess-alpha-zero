@@ -25,9 +25,8 @@ class ChessModelAPI:
 
     def predict_batch_worker(self):
         while True:
-            ready = connection.wait(self.pipes)
+            ready = connection.wait(self.pipes,timeout=0.001)
             if not ready:
-                time.sleep(0.001)
                 continue
             data, result_pipes = [], []
             for pipe in ready:
