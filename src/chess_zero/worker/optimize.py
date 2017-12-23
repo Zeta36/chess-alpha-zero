@@ -28,8 +28,8 @@ class OptimizeWorker:
         self.config = config
         self.model = None  # type: ChessModel
         self.loaded_filenames = set()
-        self.loaded_data = deque() # this should just be a ring buffer i.e. queue of length 500,000 in AZ
-        self.dataset = None
+        self.loaded_data = deque(maxlen=200000) # this should just be a ring buffer i.e. queue of length 500,000 in AZ
+        self.dataset = [],[],[]
         self.optimizer = None
         self.executor = ProcessPoolExecutor(max_workers=config.trainer.cleaning_processes)
 
@@ -62,7 +62,7 @@ class OptimizeWorker:
     def train_epoch(self, epochs):
         tc = self.config.trainer
         state_ary, policy_ary, value_ary = self.dataset
-        tensorboard_cb = TensorBoard(log_dir="./logs", batch_size=tc.batch_size, histogram_freq=1, write_grads=True, write_images=True)
+        tensorboard_cb = TensorBoard(log_dir="./logs", batch_size=tc.batch_size, histogram_freq=1)
         self.model.model.fit(state_ary, [policy_ary, value_ary],
                              batch_size=tc.batch_size,
                              epochs=epochs,
@@ -73,7 +73,6 @@ class OptimizeWorker:
         return steps
 
     def compile_model(self):
-        from keras.optimizers import Adam
         self.optimizer = Adam() #SGD(lr=2e-1, momentum=0.9) # Adam better?
         losses = ['categorical_crossentropy', 'mean_squared_error'] # avoid overfit for supervised 
         self.model.model.compile(optimizer=self.optimizer, loss=losses, loss_weights=self.config.trainer.loss_weights)
@@ -88,13 +87,26 @@ class OptimizeWorker:
         self.model.save(config_path, weight_path)
 
     def load_play_data(self):
-        filenames = get_game_data_filenames(self.config.resource)
+        self.filenames = deque(get_game_data_filenames(self.config.resource))
         updated = False
-        for filename in filenames:
-            if filename in self.loaded_filenames:
-                continue
-            self.load_data_from_file(filename)
-            updated = True
+        futures = deque()
+        with ProcessPoolExecutor(max_workers=self.config.trainer.cleaning_processes) as executor:
+            for _ in range(self.config.trainer.cleaning_processes):
+                filename = self.filenames.popleft()
+                logger.debug(f"loading data from {filename}")
+                futures.append(executor.submit(load_data_from_file,filename))
+            while futures and len(self.dataset[0])<200000:
+                # filename = filenames.popleft()
+                # if filename in self.loaded_filenames:
+                #     continue
+                # logger.debug(f"loading data from {filename}")
+                for x,y in zip(self.dataset,futures.popleft().result()):
+                    x.extend(y)
+                updated = True
+                if len(self.filenames) > 0:
+                    filename = self.filenames.popleft()
+                    logger.debug(f"loading data from {filename}")
+                    futures.append(executor.submit(load_data_from_file,filename))
 
         # for filename in (self.loaded_filenames - set(filenames)):
         #     self.unload_data_of_file(filename)
@@ -105,13 +117,15 @@ class OptimizeWorker:
             self.dataset = self.collect_all_loaded_data()
 
     def collect_all_loaded_data(self):
-        state_ary, policy_ary, value_ary = [], [], []
-        while self.loaded_data:
-            s, p, v = self.loaded_data.popleft().result()
-            #assert s[0].shape== (18,8,8)
-            state_ary.extend(s)
-            policy_ary.extend(p)
-            value_ary.extend(v)
+        # state_ary, policy_ary, value_ary = [], [], []
+        # while self.loaded_data:
+        #     s, p, v = self.loaded_data.popleft().result()
+        #     #assert s[0].shape== (18,8,8)
+        #     state_ary.extend(s)
+        #     policy_ary.extend(p)
+        #     value_ary.extend(v)
+
+        state_ary,policy_ary,value_ary=self.dataset
 
         state_ary = np.asarray(state_ary, dtype=np.float32)
         policy_ary = np.asarray(policy_ary, dtype=np.float32)
@@ -136,16 +150,6 @@ class OptimizeWorker:
             weight_path = os.path.join(latest_dir, rc.next_generation_model_weight_filename)
             model.load(config_path, weight_path)
         return model
-
-    def load_data_from_file(self, filename):
-        # try:
-        logger.debug(f"loading data from {filename}")
-        data = read_game_data_from_file(filename)
-        self.loaded_data.append( self.executor.submit(convert_to_cheating_data, data) )### HERE, use with SL
-        self.loaded_filenames.add(filename)
-        # except Exception as e:
-        #     logger.warning(str(e))
-
     @property
     def dataset_size(self):
         if self.dataset is None:
@@ -156,6 +160,15 @@ class OptimizeWorker:
     #     self.loaded_filenames.remove(filename)
     #     if filename in self.loaded_data:
     #         del self.loaded_data[filename]
+
+def load_data_from_file(filename):
+    # try:
+    data = read_game_data_from_file(filename)
+    return convert_to_cheating_data(data) ### HERE, use with SL
+    #self.loaded_filenames.add(filename)
+    # except Exception as e:
+    #     logger.warning(str(e))
+
 
 def convert_to_cheating_data(data):
     """

@@ -1,8 +1,8 @@
-tensorflow
+tensorflow-gpu
 keras
 profilehooks
 numpy
 pyperclip
-chess
+python-chess
 ujson
 h5py

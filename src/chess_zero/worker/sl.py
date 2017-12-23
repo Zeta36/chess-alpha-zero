@@ -37,8 +37,7 @@ class SupervisedLearningWorker:
         start_time = time()
         with ProcessPoolExecutor(max_workers=7) as executor:
             games = self.get_games_from_all_files()
-            futures = [executor.submit(get_buffer, self.config, game) for game in games]
-            for res in as_completed(futures):
+            for res in as_completed([executor.submit(get_buffer, self.config, game) for game in games]): #poisoned reference (memleak)
                 self.idx += 1
                 env, data = res.result()
                 self.save_data(data)

@@ -128,7 +128,7 @@ class ChessModel:
         logger.debug(f"save model to {config_path}")
         with open(config_path, "wt") as f:
             json.dump(self.model.get_config(), f)
-            #self.model.save_weights(weight_path)
+            self.model.save_weights(weight_path)
         self.digest = self.fetch_digest(weight_path)
         logger.debug(f"saved model digest {self.digest}")
 
