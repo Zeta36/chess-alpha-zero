@@ -24,7 +24,6 @@ class ChessModelAPI:
         return you
 
     def predict_batch_worker(self):
-        # with self.agent_model.graph.as_default():
         while True:
             ready = connection.wait(self.pipes)
             if not ready:

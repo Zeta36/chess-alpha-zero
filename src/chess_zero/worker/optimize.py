@@ -13,6 +13,8 @@ from chess_zero.env.chess_env import canon_input_planes, is_black_turn, testeval
 from chess_zero.lib.data_helper import get_game_data_filenames, read_game_data_from_file, get_next_generation_model_dirs
 from chess_zero.lib.model_helper import load_best_model_weight
 
+from keras.optimizers import Adam
+from keras.callbacks import TensorBoard
 logger = getLogger(__name__)
 
 
@@ -60,10 +62,13 @@ class OptimizeWorker:
     def train_epoch(self, epochs):
         tc = self.config.trainer
         state_ary, policy_ary, value_ary = self.dataset
+        tensorboard_cb = TensorBoard(log_dir="./logs", batch_size=tc.batch_size, histogram_freq=1, write_grads=True, write_images=True)
         self.model.model.fit(state_ary, [policy_ary, value_ary],
                              batch_size=tc.batch_size,
                              epochs=epochs,
-                             shuffle=True)
+                             shuffle=True,
+                             validation_split=0.05,
+                             callbacks=[tensorboard_cb])
         steps = (state_ary.shape[0] // tc.batch_size) * epochs
         return steps
 

@@ -39,8 +39,6 @@ class ChessPlayer:
 			return
 
 		self.pipe_pool = pipes
-
-		self.thinking_history = {}  # for fun
 		self.node_lock = defaultdict(Lock)
 
 	def reset(self):
@@ -188,7 +186,6 @@ class ChessPlayer:
 				a_s.p /= tot_p
 			my_visitstats.p = None
 
-		# noinspection PyUnresolvedReferences
 		xx_ = np.sqrt(my_visitstats.sum_n + 1)  # sqrt of sum(N(s, b); for all b)
 
 		e = self.play_config.noise_eps
