@@ -4,6 +4,7 @@ from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
 from logging import getLogger
 from time import sleep
+from random import shuffle
 
 import numpy as np
 
@@ -28,7 +29,7 @@ class OptimizeWorker:
         self.config = config
         self.model = None  # type: ChessModel
         self.loaded_filenames = set()
-        self.loaded_data = deque(maxlen=200000) # this should just be a ring buffer i.e. queue of length 500,000 in AZ
+        self.loaded_data = deque(maxlen=self.config.trainer.dataset_size) # this should just be a ring buffer i.e. queue of length 500,000 in AZ
         self.dataset = [],[],[]
         self.executor = ProcessPoolExecutor(max_workers=config.trainer.cleaning_processes)
 
@@ -39,6 +40,7 @@ class OptimizeWorker:
     def training(self):
         self.compile_model()
         self.filenames = deque(get_game_data_filenames(self.config.resource))
+        shuffle(self.filenames)
         last_load_data_step = last_save_step = total_steps = self.config.trainer.start_total_steps
 
         while True:
@@ -54,7 +56,7 @@ class OptimizeWorker:
             #if last_save_step + self.config.trainer.save_model_steps < total_steps:
             self.save_current_model()
             last_save_step = total_steps
-            while len(self.dataset[0]) > 100000:
+            while len(self.dataset[0]) > self.config.trainer.dataset_size/2:
                 a,b,c=self.dataset
                 a.popleft()
                 b.popleft()
@@ -65,13 +67,13 @@ class OptimizeWorker:
 
     def train_epoch(self, epochs):
         tc = self.config.trainer
-        state_ary, policy_ary, value_ary = self.dataset
+        state_ary, policy_ary, value_ary = self.collect_all_loaded_data()
         tensorboard_cb = TensorBoard(log_dir="./logs", batch_size=tc.batch_size, histogram_freq=1)
         self.model.model.fit(state_ary, [policy_ary, value_ary],
                              batch_size=tc.batch_size,
                              epochs=epochs,
                              shuffle=True,
-                             validation_split=0.05,
+                             validation_split=0.02,
                              callbacks=[tensorboard_cb])
         steps = (state_ary.shape[0] // tc.batch_size) * epochs
         return steps
@@ -91,7 +93,6 @@ class OptimizeWorker:
         self.model.save(config_path, weight_path)
 
     def fill_queue(self):
-        updated = False
         futures = deque()
         with ProcessPoolExecutor(max_workers=self.config.trainer.cleaning_processes) as executor:
             for _ in range(self.config.trainer.cleaning_processes):
@@ -100,34 +101,24 @@ class OptimizeWorker:
                 filename = self.filenames.popleft()
                 logger.debug(f"loading data from {filename}")
                 futures.append(executor.submit(load_data_from_file,filename))
-            while futures and len(self.dataset[0])<200000:
+            while futures and len(self.dataset[0]) < self.config.trainer.dataset_size:
                 for x,y in zip(self.dataset,futures.popleft().result()):
                     x.extend(y)
-                updated = True
                 if len(self.filenames) > 0:
                     filename = self.filenames.popleft()
                     logger.debug(f"loading data from {filename}")
                     futures.append(executor.submit(load_data_from_file,filename))
 
-        # for filename in (self.loaded_filenames - set(filenames)):
-        #     self.unload_data_of_file(filename)
-        #     updated = True
-
-        if updated:
-            logger.debug("updating training dataset")
-            self.dataset = self.collect_all_loaded_data()
-
     def collect_all_loaded_data(self):
         state_ary,policy_ary,value_ary=self.dataset
 
-        state_ary = np.asarray(state_ary, dtype=np.float32)
-        policy_ary = np.asarray(policy_ary, dtype=np.float32)
-        value_ary = np.asarray(value_ary, dtype=np.float32)
-        return state_ary, policy_ary, value_ary
+        state_ary1 = np.asarray(state_ary, dtype=np.float32)
+        policy_ary1 = np.asarray(policy_ary, dtype=np.float32)
+        value_ary1 = np.asarray(value_ary, dtype=np.float32)
+        return state_ary1, policy_ary1, value_ary1
 
 
     def load_model(self):
-        from chess_zero.agent.model_chess import ChessModel
         model = ChessModel(self.config)
         rc = self.config.resource
 
@@ -143,11 +134,6 @@ class OptimizeWorker:
             weight_path = os.path.join(latest_dir, rc.next_generation_model_weight_filename)
             model.load(config_path, weight_path)
         return model
-    @property
-    def dataset_size(self):
-        if self.dataset is None:
-            return 0
-        return len(self.dataset[0])
     # def unload_data_of_file(self, filename):
     #     logger.debug(f"removing data about {filename} from training set")
     #     self.loaded_filenames.remove(filename)
@@ -155,12 +141,8 @@ class OptimizeWorker:
     #         del self.loaded_data[filename]
 
 def load_data_from_file(filename):
-    # try:
     data = read_game_data_from_file(filename)
     return convert_to_cheating_data(data) ### HERE, use with SL
-    #self.loaded_filenames.add(filename)
-    # except Exception as e:
-    #     logger.warning(str(e))
 
 
 def convert_to_cheating_data(data):

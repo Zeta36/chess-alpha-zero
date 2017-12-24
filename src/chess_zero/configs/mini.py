@@ -15,8 +15,8 @@ class EvaluateConfig:
 
 class PlayDataConfig:
     def __init__(self):
-        self.min_elo_policy = 1000 # 0 weight
-        self.max_elo_policy = 2000 # 1 weight
+        self.min_elo_policy =  500 # 0 weight
+        self.max_elo_policy = 1800 # 1 weight
         self.sl_nb_game_in_file = 250
         self.nb_game_in_file = 50
         self.max_file_num = 150
@@ -47,6 +47,7 @@ class TrainerConfig:
         self.vram_frac = 1.0
         self.batch_size = 384 # tune this to your gpu memory
         self.epoch_to_checkpoint = 1
+        self.dataset_size = 100000
         self.start_total_steps = 0
         self.save_model_steps = 25
         self.load_data_steps = 100
