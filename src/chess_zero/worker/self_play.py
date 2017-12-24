@@ -38,7 +38,7 @@ class SelfPlayWorker:
 
         futures = deque()
         with ProcessPoolExecutor(max_workers=self.config.play.max_processes) as executor:
-            for game_idx in range(self.config.play.max_processes):
+            for game_idx in range(self.config.play.max_processes * 2):
                 futures.append(executor.submit(self_play_buffer, self.config, cur=self.cur_pipes))
             game_idx = 0
             while True:
