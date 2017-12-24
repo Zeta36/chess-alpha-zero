@@ -53,7 +53,7 @@ class SupervisedLearningWorker:
 
     def get_games_from_all_files(self):
         files = find_pgn_files(self.config.resource.play_data_dir)
-        print (files)
+        print(files)
         games = []
         for filename in files:
             games.extend(get_games_from_file(filename))
@@ -74,6 +74,7 @@ class SupervisedLearningWorker:
         thread.start()
         self.buffer = []
 
+
 def get_games_from_file(filename):
     pgn = open(filename, errors='ignore')
     offsets = list(chess.pgn.scan_offsets(pgn))
@@ -85,14 +86,16 @@ def get_games_from_file(filename):
         games.append(chess.pgn.read_game(pgn))
     return games
 
+
 def clip_elo_policy(config, elo):
     return min(1, max(0, elo - config.play_data.min_elo_policy) / config.play_data.max_elo_policy)
     # 0 until min_elo, 1 after max_elo, linear in between
 
+
 def get_buffer(config, game) -> (ChessEnv, list):
     env = ChessEnv().reset()
-    white = ChessPlayer(config, dummy = True)
-    black = ChessPlayer(config, dummy = True)
+    white = ChessPlayer(config, dummy=True)
+    black = ChessPlayer(config, dummy=True)
     result = game.headers["Result"]
     white_elo, black_elo = int(game.headers["WhiteElo"]), int(game.headers["BlackElo"])
     white_weight = clip_elo_policy(config, white_elo)
@@ -105,9 +108,9 @@ def get_buffer(config, game) -> (ChessEnv, list):
     k = 0
     while not env.done and k < len(actions):
         if env.white_to_move:
-            action = white.sl_action(env.observation, actions[k], weight= white_weight) #ignore=True
+            action = white.sl_action(env.observation, actions[k], weight=white_weight) #ignore=True
         else:
-            action = black.sl_action(env.observation, actions[k], weight= black_weight) #ignore=True
+            action = black.sl_action(env.observation, actions[k], weight=black_weight) #ignore=True
         env.step(action, False)
         k += 1
 

@@ -7,7 +7,6 @@ from chess_zero.env.chess_env import ChessEnv
 
 logger = getLogger(__name__)
 
-
 # noinspection SpellCheckingInspection,SpellCheckingInspection,SpellCheckingInspection,SpellCheckingInspection,SpellCheckingInspection,SpellCheckingInspection
 def start(config: Config):
 
@@ -17,21 +16,21 @@ def start(config: Config):
     env = ChessEnv().reset()
 
     while True:
-        line=input()
-        words=line.rstrip().split(" ",1)
+        line = input()
+        words = line.rstrip().split(" ",1)
         if words[0] == "uci":
             print("id name ChessZero")
             print("id author ChessZero")
             print("uciok")
-        elif words[0]=="isready":
+        elif words[0] == "isready":
             if not me_player:
                 me_player = get_player(config)
             print("readyok")
-        elif words[0]=="ucinewgame":
+        elif words[0] == "ucinewgame":
             env.reset()
-        elif words[0]=="position":
+        elif words[0] == "position":
             words=words[1].split(" ",1)
-            if words[0]=="startpos":
+            if words[0] == "startpos":
                 env.reset()
             else:
                 fen = words[0]
@@ -39,21 +38,21 @@ def start(config: Config):
                     words = words[1].split(' ',1)
                     fen += " " + words[0]
                 env.update(fen)
-                #print(maybe_flip_fen(fen,True))
             if len(words) > 1:
                 words = words[1].split(" ",1)
-                if words[0]=="moves":
+                if words[0] == "moves":
                     for w in words[1].split(" "):
                         env.step(w, False)
-        elif words[0]=="go":
+        elif words[0] == "go":
             if not me_player:
                 me_player = get_player(config)
             action = me_player.action(env, False)
             print(f"bestmove {action}")
-        elif words[0]=="stop":
-            pass #lol
-        elif words[0]=="quit":
+        elif words[0] == "stop":
+            pass
+        elif words[0] == "quit":
             break
+
 
 def get_player(config):
     from chess_zero.agent.model_chess import ChessModel
@@ -63,6 +62,7 @@ def get_player(config):
         raise RuntimeError("Best model not found!")
     return ChessPlayer(config, model.get_pipes(config.play.search_threads))
 
-def info(depth,move, score):
+
+def info(depth, move, score):
     print(f"info score cp {int(score*100)} depth {depth} pv {move}")
     sys.stdout.flush()

@@ -15,7 +15,7 @@ class EvaluateConfig:
 
 class PlayDataConfig:
     def __init__(self):
-        self.min_elo_policy =  500 # 0 weight
+        self.min_elo_policy = 500 # 0 weight
         self.max_elo_policy = 1800 # 1 weight
         self.sl_nb_game_in_file = 250
         self.nb_game_in_file = 50
@@ -59,7 +59,7 @@ class ModelConfig:
     cnn_first_filter_size = 5
     cnn_filter_size = 3
     res_layer_num = 7
-    l2_reg = 1e-4 # GO TO JSON TO SET THIS!!!! I don't have much worry for overfitting with only 1-2 epochs/dataset
+    l2_reg = 1e-4
     value_fc_size = 256
     distributed = False
     input_depth = 18

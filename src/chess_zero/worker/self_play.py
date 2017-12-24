@@ -17,6 +17,7 @@ from chess_zero.lib.model_helper import load_best_model_weight, save_as_best_mod
 
 logger = getLogger(__name__)
 
+
 def start(config: Config):
     return SelfPlayWorker(config).start()
 
@@ -70,12 +71,11 @@ class SelfPlayWorker:
         game_id = datetime.now().strftime("%Y%m%d-%H%M%S.%f")
         path = os.path.join(rc.play_data_dir, rc.play_data_filename_tmpl % game_id)
         logger.info(f"save play data to {path}")
-        thread = Thread(target = write_game_data_to_file, args=(path, self.buffer))
+        thread = Thread(target=write_game_data_to_file, args=(path, self.buffer))
         thread.start()
         self.buffer = []
 
     def remove_play_data(self):
-        return
         files = get_game_data_filenames(self.config.resource)
         if len(files) < self.config.play_data.max_file_num:
             return

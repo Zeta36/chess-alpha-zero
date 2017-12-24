@@ -61,6 +61,7 @@ class ResourceConfig:
             if not os.path.exists(d):
                 os.makedirs(d)
 
+
 def flipped_uci_labels():
     def repl(x):
         return "".join([(str(9 - int(a)) if a.isdigit() else a) for a in x])

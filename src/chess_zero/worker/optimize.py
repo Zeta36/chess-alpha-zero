@@ -20,7 +20,6 @@ logger = getLogger(__name__)
 
 
 def start(config: Config):
-    #tf_util.set_session_config(config.trainer.vram_frac)
     return OptimizeWorker(config).start()
 
 
@@ -30,7 +29,7 @@ class OptimizeWorker:
         self.model = None  # type: ChessModel
         self.loaded_filenames = set()
         self.loaded_data = deque(maxlen=self.config.trainer.dataset_size) # this should just be a ring buffer i.e. queue of length 500,000 in AZ
-        self.dataset = [],[],[]
+        self.dataset = [], [], []
         self.executor = ProcessPoolExecutor(max_workers=config.trainer.cleaning_processes)
 
     def start(self):
@@ -41,29 +40,18 @@ class OptimizeWorker:
         self.compile_model()
         self.filenames = deque(get_game_data_filenames(self.config.resource))
         shuffle(self.filenames)
-        last_load_data_step = last_save_step = total_steps = self.config.trainer.start_total_steps
+        total_steps = self.config.trainer.start_total_steps
 
         while True:
             self.fill_queue()
-            # if self.dataset_size < self.config.trainer.min_data_size_to_learn:
-            #     logger.info(f"dataset_size={self.dataset_size} is less than {self.config.trainer.min_data_size_to_learn}")
-            #     sleep(60)
-            #     self.fill_queue()
-            #     continue
-            #self.update_learning_rate(total_steps)
             steps = self.train_epoch(self.config.trainer.epoch_to_checkpoint)
             total_steps += steps
-            #if last_save_step + self.config.trainer.save_model_steps < total_steps:
             self.save_current_model()
-            last_save_step = total_steps
             while len(self.dataset[0]) > self.config.trainer.dataset_size/2:
-                a,b,c=self.dataset
+                a, b, c = self.dataset
                 a.popleft()
                 b.popleft()
                 c.popleft()
-            # if last_load_data_step + self.config.trainer.load_data_steps < total_steps:
-            #     self.fill_queue()
-            #     last_load_data_step = total_steps
 
     def train_epoch(self, epochs):
         tc = self.config.trainer
@@ -79,7 +67,7 @@ class OptimizeWorker:
         return steps
 
     def compile_model(self):
-        opt = Adam() #SGD(lr=2e-1, momentum=0.9) # Adam better?
+        opt = Adam()
         losses = ['categorical_crossentropy', 'mean_squared_error'] # avoid overfit for supervised 
         self.model.model.compile(optimizer=opt, loss=losses, loss_weights=self.config.trainer.loss_weights)
 
@@ -117,7 +105,6 @@ class OptimizeWorker:
         value_ary1 = np.asarray(value_ary, dtype=np.float32)
         return state_ary1, policy_ary1, value_ary1
 
-
     def load_model(self):
         model = ChessModel(self.config)
         rc = self.config.resource
@@ -134,15 +121,11 @@ class OptimizeWorker:
             weight_path = os.path.join(latest_dir, rc.next_generation_model_weight_filename)
             model.load(config_path, weight_path)
         return model
-    # def unload_data_of_file(self, filename):
-    #     logger.debug(f"removing data about {filename} from training set")
-    #     self.loaded_filenames.remove(filename)
-    #     if filename in self.loaded_data:
-    #         del self.loaded_data[filename]
+
 
 def load_data_from_file(filename):
     data = read_game_data_from_file(filename)
-    return convert_to_cheating_data(data) ### HERE, use with SL
+    return convert_to_cheating_data(data)
 
 
 def convert_to_cheating_data(data):
@@ -156,14 +139,9 @@ def convert_to_cheating_data(data):
     for state_fen, policy, value in data:
 
         state_planes = canon_input_planes(state_fen)
-        #assert check_current_planes(state_fen, state_planes)
 
         if is_black_turn(state_fen):
             policy = Config.flip_policy(policy)
-
-        # assert len(policy) == 1968
-        # assert state_planes.dtype == np.float32
-        # assert state_planes.shape == (18, 8, 8) #print(state_planes.shape)
 
         move_number = int(state_fen.split(' ')[5])
         value_certainty = min(5, move_number)/5 # reduces the noise of the opening... plz train faster

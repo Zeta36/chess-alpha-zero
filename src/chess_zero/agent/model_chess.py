@@ -57,7 +57,6 @@ class ChessModel:
         x = Flatten(name="policy_flatten")(x)
         # no output for 'pass'
         policy_out = Dense(self.config.n_labels, kernel_regularizer=l2(mc.l2_reg), activation="softmax", name="policy_out")(x)
-        
 
         # for value output
         x = Conv2D(filters=4, kernel_size=1, data_format="channels_first", use_bias=False, kernel_regularizer=l2(mc.l2_reg),
@@ -118,7 +117,6 @@ class ChessModel:
             self.model._make_predict_function()
             self.digest = self.fetch_digest(weight_path)
             logger.debug(f"loaded model digest = {self.digest}")
-            #print(self.model.summary)
             return True
         else:
             logger.debug(f"model files does not exist at {config_path} and {weight_path}")

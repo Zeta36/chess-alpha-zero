@@ -1,5 +1,4 @@
 from multiprocessing import connection, Pipe
-import time
 from threading import Thread
 
 import numpy as np
@@ -33,7 +32,7 @@ class ChessModelAPI:
                 while pipe.poll():
                     data.append(pipe.recv())
                     result_pipes.append(pipe)
-            # print(f"predicting {len(result_pipes)} items")
+
             data = np.asarray(data, dtype=np.float32)
             policy_ary, value_ary = self.agent_model.model.predict_on_batch(data)
             for pipe, p, v in zip(result_pipes, policy_ary, value_ary):
