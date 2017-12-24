@@ -30,7 +30,6 @@ class OptimizeWorker:
         self.loaded_filenames = set()
         self.loaded_data = deque(maxlen=200000) # this should just be a ring buffer i.e. queue of length 500,000 in AZ
         self.dataset = [],[],[]
-        self.optimizer = None
         self.executor = ProcessPoolExecutor(max_workers=config.trainer.cleaning_processes)
 
     def start(self):
@@ -39,24 +38,25 @@ class OptimizeWorker:
 
     def training(self):
         self.compile_model()
+        self.filenames = deque(get_game_data_filenames(self.config.resource))
         last_load_data_step = last_save_step = total_steps = self.config.trainer.start_total_steps
-        self.load_play_data()
 
         while True:
-            if self.dataset_size < self.config.trainer.min_data_size_to_learn:
-                logger.info(f"dataset_size={self.dataset_size} is less than {self.config.trainer.min_data_size_to_learn}")
-                sleep(60)
-                self.load_play_data()
-                continue
+            self.fill_queue()
+            # if self.dataset_size < self.config.trainer.min_data_size_to_learn:
+            #     logger.info(f"dataset_size={self.dataset_size} is less than {self.config.trainer.min_data_size_to_learn}")
+            #     sleep(60)
+            #     self.fill_queue()
+            #     continue
             #self.update_learning_rate(total_steps)
             steps = self.train_epoch(self.config.trainer.epoch_to_checkpoint)
             total_steps += steps
             #if last_save_step + self.config.trainer.save_model_steps < total_steps:
             self.save_current_model()
             last_save_step = total_steps
-
+            self.dataset = [],[],[]
             # if last_load_data_step + self.config.trainer.load_data_steps < total_steps:
-            #     self.load_play_data()
+            #     self.fill_queue()
             #     last_load_data_step = total_steps
 
     def train_epoch(self, epochs):
@@ -73,9 +73,9 @@ class OptimizeWorker:
         return steps
 
     def compile_model(self):
-        self.optimizer = Adam() #SGD(lr=2e-1, momentum=0.9) # Adam better?
+        opt = Adam() #SGD(lr=2e-1, momentum=0.9) # Adam better?
         losses = ['categorical_crossentropy', 'mean_squared_error'] # avoid overfit for supervised 
-        self.model.model.compile(optimizer=self.optimizer, loss=losses, loss_weights=self.config.trainer.loss_weights)
+        self.model.model.compile(optimizer=opt, loss=losses, loss_weights=self.config.trainer.loss_weights)
 
     def save_current_model(self):
         rc = self.config.resource
@@ -86,20 +86,17 @@ class OptimizeWorker:
         weight_path = os.path.join(model_dir, rc.next_generation_model_weight_filename)
         self.model.save(config_path, weight_path)
 
-    def load_play_data(self):
-        self.filenames = deque(get_game_data_filenames(self.config.resource))
+    def fill_queue(self):
         updated = False
         futures = deque()
         with ProcessPoolExecutor(max_workers=self.config.trainer.cleaning_processes) as executor:
             for _ in range(self.config.trainer.cleaning_processes):
+                if len(self.filenames) == 0:
+                    break
                 filename = self.filenames.popleft()
                 logger.debug(f"loading data from {filename}")
                 futures.append(executor.submit(load_data_from_file,filename))
             while futures and len(self.dataset[0])<200000:
-                # filename = filenames.popleft()
-                # if filename in self.loaded_filenames:
-                #     continue
-                # logger.debug(f"loading data from {filename}")
                 for x,y in zip(self.dataset,futures.popleft().result()):
                     x.extend(y)
                 updated = True
@@ -117,14 +114,6 @@ class OptimizeWorker:
             self.dataset = self.collect_all_loaded_data()
 
     def collect_all_loaded_data(self):
-        # state_ary, policy_ary, value_ary = [], [], []
-        # while self.loaded_data:
-        #     s, p, v = self.loaded_data.popleft().result()
-        #     #assert s[0].shape== (18,8,8)
-        #     state_ary.extend(s)
-        #     policy_ary.extend(p)
-        #     value_ary.extend(v)
-
         state_ary,policy_ary,value_ary=self.dataset
 
         state_ary = np.asarray(state_ary, dtype=np.float32)
