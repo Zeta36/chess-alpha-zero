@@ -29,7 +29,7 @@ class OptimizeWorker:
         self.model = None  # type: ChessModel
         self.loaded_filenames = set()
         self.loaded_data = deque(maxlen=self.config.trainer.dataset_size) # this should just be a ring buffer i.e. queue of length 500,000 in AZ
-        self.dataset = [], [], []
+        self.dataset = deque(),deque(),deque()
         self.executor = ProcessPoolExecutor(max_workers=config.trainer.cleaning_processes)
 
     def start(self):
@@ -47,8 +47,8 @@ class OptimizeWorker:
             steps = self.train_epoch(self.config.trainer.epoch_to_checkpoint)
             total_steps += steps
             self.save_current_model()
-            while len(self.dataset[0]) > self.config.trainer.dataset_size/2:
-                a, b, c = self.dataset
+            a, b, c = self.dataset
+            while len(a) > self.config.trainer.dataset_size/2:
                 a.popleft()
                 b.popleft()
                 c.popleft()
