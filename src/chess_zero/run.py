@@ -1,18 +1,16 @@
-
 import os
 import sys
-from dotenv import load_dotenv, find_dotenv
-
-if find_dotenv():
-    load_dotenv(find_dotenv())
+import multiprocessing as mp
 
 _PATH_ = os.path.dirname(os.path.dirname(__file__))
 
 
 if _PATH_ not in sys.path:
-    sys.path.append(_PATH_)
+	sys.path.append(_PATH_)
 
 
 if __name__ == "__main__":
-    from chess_zero import manager
-    manager.start()
+	mp.set_start_method('spawn')
+	sys.setrecursionlimit(10000)
+	from chess_zero import manager
+	manager.start()

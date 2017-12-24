@@ -7,14 +7,14 @@ from .config import Config
 
 logger = getLogger(__name__)
 
-CMD_LIST = ['self', 'opt', 'eval', 'play_gui', 'sl', 'uci']
+CMD_LIST = ['self', 'opt', 'eval', 'sl', 'uci']
 
 
 def create_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument("cmd", help="what to do", choices=CMD_LIST)
     parser.add_argument("--new", help="run from new best model", action="store_true")
-    parser.add_argument("--type", help="use normal setting", default="normal")
+    parser.add_argument("--type", help="use normal setting", default="mini")
     parser.add_argument("--total-step", help="set TrainerConfig.start_total_steps", type=int)
     return parser
 
@@ -32,9 +32,9 @@ def start():
     args = parser.parse_args()
     config_type = args.type
 
-
     if args.cmd == 'uci':
         disable(999999) # plz don't interfere with uci
+
     config = Config(config_type=config_type)
     setup(config, args)
 
@@ -52,9 +52,6 @@ def start():
     elif args.cmd == 'sl':
         from .worker import sl
         return sl.start(config)
-    elif args.cmd == 'play_gui':
-        from .play_game import gui
-        return gui.start(config)
     elif args.cmd == 'uci':
         from .play_game import uci
         return uci.start(config)

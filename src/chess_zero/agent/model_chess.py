@@ -1,11 +1,8 @@
+import ftplib
 import hashlib
 import json
-import urllib.request
-import ftplib
 import os
 from logging import getLogger
-# noinspection PyPep8Naming
-import keras.backend as k
 
 from keras.engine.topology import Input
 from keras.engine.training import Model
@@ -13,10 +10,12 @@ from keras.layers.convolutional import Conv2D
 from keras.layers.core import Activation, Dense, Flatten
 from keras.layers.merge import Add
 from keras.layers.normalization import BatchNormalization
-from keras.losses import mean_squared_error
 from keras.regularizers import l2
 
+from chess_zero.agent.api_chess import ChessModelAPI
 from chess_zero.config import Config
+
+# noinspection PyPep8Naming
 
 logger = getLogger(__name__)
 
@@ -26,51 +25,66 @@ class ChessModel:
         self.config = config
         self.model = None  # type: Model
         self.digest = None
+        self.api = None
+
+    def get_pipes(self, num = 1):
+        if self.api is None:
+            self.api = ChessModelAPI(self.config, self)
+            self.api.start()
+        return [self.api.get_pipe() for _ in range(num)]
 
     def build(self):
         mc = self.config.model
-        in_x = x = Input((2, 8, 8))  # [own(8x8), enemy(8x8)]
+        in_x = x = Input((18, 8, 8))
 
         # (batch, channels, height, width)
-        x = Conv2D(filters=mc.cnn_filter_num, kernel_size=mc.cnn_filter_size, padding="same",
-                   data_format="channels_first", kernel_regularizer=l2(mc.l2_reg))(x)
-        x = BatchNormalization(axis=1)(x)
-        x = Activation("relu")(x)
+        x = Conv2D(filters=mc.cnn_filter_num, kernel_size=mc.cnn_first_filter_size, padding="same",
+                   data_format="channels_first", use_bias=False, kernel_regularizer=l2(mc.l2_reg),
+                   name="input_conv-"+str(mc.cnn_first_filter_size)+"-"+str(mc.cnn_filter_num))(x)
+        x = BatchNormalization(axis=1, name="input_batchnorm")(x)
+        x = Activation("relu", name="input_relu")(x)
 
-        for _ in range(mc.res_layer_num):
-            x = self._build_residual_block(x)
+        for i in range(mc.res_layer_num):
+            x = self._build_residual_block(x, i + 1)
 
         res_out = x
+        
         # for policy output
-        x = Conv2D(filters=2, kernel_size=1, data_format="channels_first", kernel_regularizer=l2(mc.l2_reg))(res_out)
-        x = BatchNormalization(axis=1)(x)
-        x = Activation("relu")(x)
-        x = Flatten()(x)
+        x = Conv2D(filters=2, kernel_size=1, data_format="channels_first", use_bias=False, kernel_regularizer=l2(mc.l2_reg),
+                    name="policy_conv-1-2")(res_out)
+        x = BatchNormalization(axis=1, name="policy_batchnorm")(x)
+        x = Activation("relu", name="policy_relu")(x)
+        x = Flatten(name="policy_flatten")(x)
         # no output for 'pass'
         policy_out = Dense(self.config.n_labels, kernel_regularizer=l2(mc.l2_reg), activation="softmax", name="policy_out")(x)
+        
 
         # for value output
-        x = Conv2D(filters=1, kernel_size=1, data_format="channels_first", kernel_regularizer=l2(mc.l2_reg))(res_out)
-        x = BatchNormalization(axis=1)(x)
-        x = Activation("relu")(x)
-        x = Flatten()(x)
-        x = Dense(mc.value_fc_size, kernel_regularizer=l2(mc.l2_reg), activation="relu")(x)
+        x = Conv2D(filters=4, kernel_size=1, data_format="channels_first", use_bias=False, kernel_regularizer=l2(mc.l2_reg),
+                    name="value_conv-1-4")(res_out)
+        x = BatchNormalization(axis=1, name="value_batchnorm")(x)
+        x = Activation("relu",name="value_relu")(x)
+        x = Flatten(name="value_flatten")(x)
+        x = Dense(mc.value_fc_size, kernel_regularizer=l2(mc.l2_reg), activation="relu", name="value_dense")(x)
         value_out = Dense(1, kernel_regularizer=l2(mc.l2_reg), activation="tanh", name="value_out")(x)
 
         self.model = Model(in_x, [policy_out, value_out], name="chess_model")
 
-    def _build_residual_block(self, x):
+    def _build_residual_block(self, x, index):
         mc = self.config.model
         in_x = x
+        res_name = "res"+str(index)
         x = Conv2D(filters=mc.cnn_filter_num, kernel_size=mc.cnn_filter_size, padding="same",
-                   data_format="channels_first", kernel_regularizer=l2(mc.l2_reg))(x)
-        x = BatchNormalization(axis=1)(x)
-        x = Activation("relu")(x)
+                   data_format="channels_first", use_bias=False, kernel_regularizer=l2(mc.l2_reg), 
+                   name=res_name+"_conv1-"+str(mc.cnn_filter_size)+"-"+str(mc.cnn_filter_num))(x)
+        x = BatchNormalization(axis=1, name=res_name+"_batchnorm1")(x)
+        x = Activation("relu",name=res_name+"_relu1")(x)
         x = Conv2D(filters=mc.cnn_filter_num, kernel_size=mc.cnn_filter_size, padding="same",
-                   data_format="channels_first", kernel_regularizer=l2(mc.l2_reg))(x)
-        x = BatchNormalization(axis=1)(x)
-        x = Add()([in_x, x])
-        x = Activation("relu")(x)
+                   data_format="channels_first", use_bias=False, kernel_regularizer=l2(mc.l2_reg), 
+                   name=res_name+"_conv2-"+str(mc.cnn_filter_size)+"-"+str(mc.cnn_filter_num))(x)
+        x = BatchNormalization(axis=1, name="res"+str(index)+"_batchnorm2")(x)
+        x = Add(name=res_name+"_add")([in_x, x])
+        x = Activation("relu", name=res_name+"_relu2")(x)
         return x
 
     @staticmethod
@@ -86,7 +100,7 @@ class ChessModel:
         resources = self.config.resource
         if mc.distributed and config_path == resources.model_best_config_path:
             try:
-                logger.debug(f"loading model from server")
+                logger.debug("loading model from server")
                 ftp_connection = ftplib.FTP(resources.model_best_distributed_ftp_server,
                                             resources.model_best_distributed_ftp_user,
                                             resources.model_best_distributed_ftp_password)
@@ -96,14 +110,15 @@ class ChessModel:
                 ftp_connection.quit()
             except:
                 pass
-
         if os.path.exists(config_path) and os.path.exists(weight_path):
             logger.debug(f"loading model from {config_path}")
             with open(config_path, "rt") as f:
                 self.model = Model.from_config(json.load(f))
             self.model.load_weights(weight_path)
+            self.model._make_predict_function()
             self.digest = self.fetch_digest(weight_path)
             logger.debug(f"loaded model digest = {self.digest}")
+            #print(self.model.summary)
             return True
         else:
             logger.debug(f"model files does not exist at {config_path} and {weight_path}")
@@ -121,7 +136,7 @@ class ChessModel:
         resources = self.config.resource
         if mc.distributed and config_path == resources.model_best_config_path:
             try:
-                logger.debug(f"saving model to server")
+                logger.debug("saving model to server")
                 ftp_connection = ftplib.FTP(resources.model_best_distributed_ftp_server,
                                             resources.model_best_distributed_ftp_user,
                                             resources.model_best_distributed_ftp_password)
@@ -136,12 +151,3 @@ class ChessModel:
                 ftp_connection.quit()
             except:
                 pass
-
-
-def objective_function_for_policy(y_true, y_pred):
-    # can use categorical_crossentropy??
-    return k.sum(-y_true * k.log(y_pred + k.epsilon()), axis=-1)
-
-
-def objective_function_for_value(y_true, y_pred):
-    return mean_squared_error(y_true, y_pred)

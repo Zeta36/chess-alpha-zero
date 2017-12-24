@@ -1,282 +1,256 @@
-from _asyncio import Future
-from asyncio.queues import Queue
-from collections import defaultdict, namedtuple
+from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from logging import getLogger
-import asyncio
+from threading import Lock
 
-from profilehooks import profile
-
-import time
-
-import numpy as np
 import chess
+import numpy as np
 
-from chess_zero.agent.api_chess import ChessModelAPI
 from chess_zero.config import Config
 from chess_zero.env.chess_env import ChessEnv, Winner
 
-import platform
-if platform.system() != "Windows":
-    import uvloop
-    asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
-
-CounterKey = namedtuple("CounterKey", "board next_player")
-QueueItem = namedtuple("QueueItem", "state future")
-HistoryItem = namedtuple("HistoryItem", "action policy values visit")
+#from chess_zero.play_game.uci import info
 
 logger = getLogger(__name__)
 
+# these are from AGZ nature paper
+class VisitStats:
+	def __init__(self):
+		self.a = defaultdict(ActionStats)
+		self.sum_n = 0
+
+class ActionStats:
+	def __init__(self):
+		self.n = 0
+		self.w = 0
+		self.q = 0
 
 class ChessPlayer:
-    def __init__(self, config: Config, model, play_config=None):
+	# dot = False
+	def __init__(self, config: Config, pipes=None, play_config=None, dummy=False):
+		self.moves = []
 
-        self.config = config
-        self.model = model
-        self.play_config = play_config or self.config.play
-        self.api = ChessModelAPI(self.config, self.model)
+		self.config = config
+		self.play_config = play_config or self.config.play
+		self.labels_n = config.n_labels
+		self.labels = config.labels
+		self.move_lookup = {chess.Move.from_uci(move): i for move, i in zip(self.labels, range(self.labels_n))}
+		if dummy:
+			return
 
-        self.move_lookup = {k:v for k,v in zip((chess.Move.from_uci(move) for move in self.config.labels),range(len(self.config.labels)))}
-        self.labels_n = config.n_labels
-        self.var_n = defaultdict(lambda: np.zeros((self.labels_n,)))
-        self.var_w = defaultdict(lambda: np.zeros((self.labels_n,)))
-        self.var_q = defaultdict(lambda: np.zeros((self.labels_n,)))
-        self.var_u = defaultdict(lambda: np.zeros((self.labels_n,)))
-        self.var_p = defaultdict(lambda: np.zeros((self.labels_n,)))
-        self.expanded = set()
-        self.now_expanding = set()
-        self.prediction_queue = Queue(self.play_config.prediction_queue_size)
-        self.sem = asyncio.Semaphore(self.play_config.parallel_search_num)
+		self.pipe_pool = pipes
+		self.node_lock = defaultdict(Lock)
 
-        self.moves = []
-        self.loop = asyncio.get_event_loop()
-        self.running_simulation_num = 0
+	def reset(self):
+		self.tree = defaultdict(VisitStats)
 
-        self.thinking_history = {}  # for fun
+	def deboog(self, env):
+		print(env.testeval())
 
-    def sl_action(self, board, action):
+		state = state_key(env)
+		my_visit_stats = self.tree[state]
+		stats = []
+		for action, a_s in my_visit_stats.a.items():
+			moi = self.move_lookup[action]
+			stats.append(np.asarray([a_s.n, a_s.w, a_s.q, a_s.p, moi]))
+		stats = np.asarray(stats)
+		a = stats[stats[:,0].argsort()[::-1]]
 
-        env = ChessEnv().update(board)
+		for s in a:
+			print(f'{self.labels[int(s[4])]:5}: '
+				  f'n: {s[0]:3.0f} '
+				  f'w: {s[1]:7.3f} '
+				  f'q: {s[2]:7.3f} '
+				  f'p: {s[3]:7.5f}')
 
-        policy = np.zeros(self.labels_n)
-        k = 0
-        for mov in self.config.labels:
-            if mov == action:
-                policy[k] = 1.0
-                break
-            k += 1
+	def action(self, env, can_stop = True) -> str:
+		self.reset()
 
-        self.moves.append([env.observation, list(policy)])
-        return action
+		# for tl in range(self.play_config.thinking_loop):
+		root_value, naked_value = self.search_moves(env)
+		policy = self.calc_policy(env)
+		my_action = int(np.random.choice(range(self.labels_n), p = self.apply_temperature(policy, env.num_halfmoves)))
+		#print(naked_value)
+		#self.deboog(env)
+		if can_stop and self.play_config.resign_threshold is not None and \
+						root_value <= self.play_config.resign_threshold \
+						and env.num_halfmoves > self.play_config.min_resign_turn:
+			# noinspection PyTypeChecker
+			return None
+		else:
+			self.moves.append([env.observation, list(policy)])
+			return self.config.labels[my_action]
 
-    def action(self, board):
+	def search_moves(self, env) -> (float, float):
+		# if ChessPlayer.dot == False:
+		#     import stacktracer
+		#     stacktracer.trace_start("trace.html")
+		#     ChessPlayer.dot = True
 
-        env = ChessEnv().update(board)
-        key = self.counter_key(env)
+		futures = []
+		with ThreadPoolExecutor(max_workers=self.play_config.search_threads) as executor:
+			for _ in range(self.play_config.simulation_num_per_move):
+				futures.append(executor.submit(self.search_my_move,env=env.copy(),is_root_node=True))
 
-        for tl in range(self.play_config.thinking_loop):
-            if tl > 0 and self.play_config.logging_thinking:
-                logger.debug(f"continue thinking: policy move=({action}, "
-                             f"value move=({action_by_value})")
-            self.search_moves(board)
-            policy = self.calc_policy(board)
-            action = int(np.random.choice(range(self.labels_n), p=policy))
-            action_by_value = int(np.argmax(self.var_q[key] + (self.var_n[key] > 0)*100))
-            if action == action_by_value or env.turn < self.play_config.change_tau_turn:
-                break
+		vals = [f.result() for f in futures]
+		#vals=[self.search_my_move(env.copy(),True) for _ in range(self.play_config.simulation_num_per_move)]
 
-        # this is for play_gui, not necessary when training.
-        self.thinking_history[env.observation] = HistoryItem(action, policy, list(self.var_q[key]), list(self.var_n[key]))
+		return np.max(vals), vals[0] # vals[0] is kind of racy
 
-        if self.play_config.resign_threshold is not None and \
-            env.score_current() <= self.play_config.resign_threshold and \
-                self.play_config.min_resign_turn < env.turn:
-            return None  # means resign
-        else:
-            self.moves.append([env.observation, list(policy)])
-            return self.config.labels[action]
+	def search_my_move(self, env: ChessEnv, is_root_node=False) -> float:
+		"""
+		Q, V is value for this Player(always white).
+		P is value for the player of next_player (black or white)
+		:return: leaf value
+		"""
+		if env.done:
+			if env.winner == Winner.draw:
+				return 0
+			# assert env.whitewon != env.white_to_move # side to move can't be winner!
+			return -1
 
-    def ask_thought_about(self, board) -> HistoryItem:
-        return self.thinking_history.get(board)
+		state = state_key(env)
 
-    @profile
-    def search_moves(self, board):
-        start = time.time()
-        loop = self.loop
-        self.running_simulation_num = 0
+		with self.node_lock[state]:
+			if state not in self.tree:
+				leaf_p, leaf_v = self.expand_and_evaluate(env)
+				self.tree[state].p = leaf_p
+				return leaf_v # I'm returning everything from the POV of side to move
+			#assert state in self.tree
 
-        coroutine_list = []
-        for it in range(self.play_config.simulation_num_per_move):
-            cor = self.start_search_my_move(board)
-            coroutine_list.append(cor)
+			# SELECT STEP
+			action_t = self.select_action_q_and_u(env, is_root_node)
 
-        coroutine_list.append(self.prediction_worker())
-        loop.run_until_complete(asyncio.gather(*coroutine_list))
-        #logger.debug(f"Search time per move: {time.time()-start}")
-        # uncomment to see profile result per move
-        # raise
+			virtual_loss = self.play_config.virtual_loss
 
-    async def start_search_my_move(self, board):
-        self.running_simulation_num += 1
-        with await self.sem:  # reduce parallel search number
-            env = ChessEnv().update(board)
-            leaf_v = await self.search_my_move(env, is_root_node=True)
-            self.running_simulation_num -= 1
-            return leaf_v
+			my_visit_stats = self.tree[state]
+			my_stats = my_visit_stats.a[action_t]
 
-    async def search_my_move(self, env: ChessEnv, is_root_node=False):
-        """
+			my_visit_stats.sum_n += virtual_loss
+			my_stats.n += virtual_loss
+			my_stats.w += -virtual_loss
+			my_stats.q = my_stats.w / my_stats.n
 
-        Q, V is value for this Player(always white).
-        P is value for the player of next_player (black or white)
-        :param env:
-        :param is_root_node:
-        :return:
-        """
-        if env.done:
-            if env.winner == Winner.white:
-                return 1
-            elif env.winner == Winner.black:
-                return -1
-            else:
-                return 0
+		env.step(action_t.uci())
+		leaf_v = self.search_my_move(env)  # next move from enemy POV
+		leaf_v = -leaf_v
 
-        key = self.counter_key(env)
+		# BACKUP STEP
+		# on returning search path
+		# update: N, W, Q
+		with self.node_lock[state]:
+			my_visit_stats.sum_n += -virtual_loss + 1
+			my_stats.n += -virtual_loss + 1
+			my_stats.w += virtual_loss + leaf_v
+			my_stats.q = my_stats.w / my_stats.n
 
-        while key in self.now_expanding:
-            await asyncio.sleep(self.config.play.wait_for_expanding_sleep_sec)
+		return leaf_v
 
-        # is leaf?
-        if key not in self.expanded:  # reach leaf node
-            leaf_v = await self.expand_and_evaluate(env)
-            if env.board.turn == chess.WHITE:
-                return leaf_v  # Value for white
-            else:
-                return -leaf_v  # Value for white == -Value for white
+	def expand_and_evaluate(self, env) -> (np.ndarray, float):
+		""" expand new leaf, this is called only once per state
+		this is called with state locked
+		insert P(a|s), return leaf_v
+		"""
+		state_planes = env.canonical_input_planes()
 
-        action_t = self.select_action_q_and_u(env, is_root_node)
+		leaf_p, leaf_v = self.predict(state_planes)
+		# these are canonical policy and value (i.e. side to move is "white")
 
-        _, _ = env.step(self.config.labels[action_t])
+		if not env.white_to_move:
+			leaf_p = Config.flip_policy(leaf_p) # get it back to python-chess form
+		#np.testing.assert_array_equal(Config.flip_policy(Config.flip_policy(leaf_p)), leaf_p)
 
-        virtual_loss = self.config.play.virtual_loss
-        self.var_n[key][action_t] += virtual_loss
-        self.var_w[key][action_t] -= virtual_loss
+		return leaf_p, leaf_v
 
-        leaf_v = await self.search_my_move(env)  # next move
+	def predict(self, state_planes):
+		pipe = self.pipe_pool.pop()
+		pipe.send(state_planes)
+		ret = pipe.recv()
+		self.pipe_pool.append(pipe)
+		return ret
 
-        # on returning search path
-        # update: N, W, Q, U
-        n = self.var_n[key][action_t] = self.var_n[key][action_t] - virtual_loss + 1
-        w = self.var_w[key][action_t] = self.var_w[key][action_t] + virtual_loss + leaf_v
-        self.var_q[key][action_t] = w / n
+	#@profile
+	def select_action_q_and_u(self, env, is_root_node) -> chess.Move:
+		# this method is called with state locked
+		state = state_key(env)
 
-        return leaf_v
+		my_visitstats = self.tree[state]
 
-    @profile
-    async def expand_and_evaluate(self, env):
-        """expand new leaf
+		if my_visitstats.p is not None: #push p to edges
+			tot_p = 1e-8
+			for mov in env.board.legal_moves:
+				mov_p = my_visitstats.p[self.move_lookup[mov]]
+				my_visitstats.a[mov].p = mov_p
+				tot_p += mov_p
+			for a_s in my_visitstats.a.values():
+				a_s.p /= tot_p
+			my_visitstats.p = None
 
-        update var_p, return leaf_v
+		xx_ = np.sqrt(my_visitstats.sum_n + 1)  # sqrt of sum(N(s, b); for all b)
 
-        :param ChessEnv env:
-        :return: leaf_v
-        """
-        key = self.counter_key(env)
-        self.now_expanding.add(key)
+		e = self.play_config.noise_eps
+		c_puct = self.play_config.c_puct
+		dir_alpha = self.play_config.dirichlet_alpha
 
-        black_ary, white_ary = env.black_and_white_plane()
-        state = [black_ary, white_ary] if env.board.turn == chess.BLACK else [white_ary, black_ary]
-        future = await self.predict(np.array(state))  # type: Future
+		best_s = -999
+		best_a = None
 
-        await future
-        leaf_p, leaf_v = future.result()
+		for action, a_s in my_visitstats.a.items():
+			p_ = a_s.p
+			if is_root_node:
+				p_ = (1-e) * p_ + e * np.random.dirichlet([dir_alpha])
+			b = a_s.q + c_puct * p_ * xx_ / (1 + a_s.n)
+			if b > best_s:
+				best_s = b
+				best_a = action
 
-        self.var_p[key] = leaf_p  # P is value for next_player (black or white)
+		return best_a
 
-        self.expanded.add(key)
-        self.now_expanding.remove(key)
-        return float(leaf_v)
+	def apply_temperature(self, policy, turn):
+		tau = np.power(self.play_config.tau_decay_rate, turn + 1)
+		if tau < 0.1:
+			tau = 0
+		if tau == 0:
+			action = np.argmax(policy)
+			ret = np.zeros(self.labels_n)
+			ret[action] = 1.0
+			return ret
+		else:
+			ret = np.power(policy, 1/tau)
+			ret /= np.sum(ret)
+			return ret
 
-    async def prediction_worker(self):
-        """For better performance, queueing prediction requests and predict together in this worker.
+	def calc_policy(self, env):
+		"""calc π(a|s0)
+		:return:
+		"""
+		state = state_key(env)
+		my_visitstats = self.tree[state]
+		policy = np.zeros(self.labels_n)
+		for action, a_s in my_visitstats.a.items():
+			policy[self.move_lookup[action]] = a_s.n
 
-        speed up about 45sec -> 15sec for example.
-        :return:
-        """
-        q = self.prediction_queue
-        margin = 10  # avoid finishing before other searches starting.
-        while self.running_simulation_num > 0 or margin > 0:
-            if q.empty():
-                if margin > 0:
-                    margin -= 1
-                await asyncio.sleep(self.config.play.prediction_worker_sleep_sec)
-                continue
-            item_list = [q.get_nowait() for _ in range(q.qsize())]  # type: list[QueueItem]
-            #logger.debug(f"predicting {len(item_list)} items")
-            data = np.array([x.state for x in item_list])
-            policy_ary, value_ary = self.api.predict(data)
-            for p, v, item in zip(policy_ary, value_ary, item_list):
-                item.future.set_result((p, v))
+		policy /= np.sum(policy)
+		return policy
 
-    async def predict(self, x):
-        future = self.loop.create_future()
-        item = QueueItem(x, future)
-        await self.prediction_queue.put(item)
-        return future
+	def sl_action(self, observation, my_action, weight=1):
+		policy = np.zeros(self.labels_n)
 
-    def finish_game(self, z):
-        """
+		k = self.move_lookup[chess.Move.from_uci(my_action)]
+		policy[k] = weight
 
-        :param z: win=1, lose=-1, draw=0
-        :return:
-        """
-        for move in self.moves:  # add this game winner result to all past moves.
-            move += [z]
+		self.moves.append([observation, list(policy)])
+		return my_action
 
-    def calc_policy(self, board):
-        """calc π(a|s0)
-        :return:
-        """
-        pc = self.play_config
-        env = ChessEnv().update(board)
-        key = self.counter_key(env)
-        if env.turn < pc.change_tau_turn:
-            return self.var_n[key] / (np.sum(self.var_n[key])+1e-8)  # tau = 1
-        else:
-            action = np.argmax(self.var_n[key])  # tau = 0
-            ret = np.zeros(self.labels_n)
-            ret[action] = 1
-            return ret
+	def finish_game(self, z):
+		"""
+		:param self:
+		:param z: win=1, lose=-1, draw=0
+		:return:
+		"""
+		for move in self.moves:  # add this game winner result to all past moves.
+			move += [z]
 
-    @staticmethod
-    def counter_key(env: ChessEnv):
-        return CounterKey(env.replace_tags(), env.board.turn)
-
-    def select_action_q_and_u(self, env, is_root_node):
-        key = self.counter_key(env)
-
-        """Bottlenecks are these two lines"""
-        legal_moves = [self.move_lookup[mov] for mov in env.board.legal_moves]
-        legal_labels = np.zeros(len(self.config.labels))
-        #logger.debug(legal_moves)
-        legal_labels[legal_moves] = 1
-
-
-        # noinspection PyUnresolvedReferences
-        xx_ = np.sqrt(np.sum(self.var_n[key]))  # SQRT of sum(N(s, b); for all b)
-        xx_ = max(xx_, 1)  # avoid u_=0 if N is all 0
-        p_ = self.var_p[key]
-
-        if is_root_node:  # Is it correct?? -> (1-e)p + e*Dir(0.03)
-            p_ = (1 - self.play_config.noise_eps) * p_ + \
-                 self.play_config.noise_eps * np.random.dirichlet([self.play_config.dirichlet_alpha] * self.labels_n)
-
-        u_ = self.play_config.c_puct * p_ * xx_ / (1 + self.var_n[key])
-        if env.board.turn == chess.WHITE:
-            v_ = (self.var_q[key] + u_ + 1000) * legal_labels
-        else:
-            # When enemy's selecting action, flip Q-Value.
-            v_ = (-self.var_q[key] + u_ + 1000) * legal_labels
-
-        # noinspection PyTypeChecker
-        action_t = int(np.argmax(v_))
-        return action_t
+def state_key(env: ChessEnv) -> str:
+	fen = env.board.fen().rsplit(' ', 1) # drop the move clock
+	return fen[0]

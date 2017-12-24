@@ -1,19 +1,30 @@
-import json
 import os
+import json
+from datetime import datetime
 from glob import glob
-import fnmatch
 from logging import getLogger
 
+import chess
+import pyperclip
 from chess_zero.config import ResourceConfig
 
 logger = getLogger(__name__)
 
 
+def pretty_print(env, colors):
+    new_pgn = open("test3.pgn", "at")
+    game = chess.pgn.Game.from_board(env.board)
+    game.headers["Result"] = env.result
+    game.headers["White"], game.headers["Black"] = colors
+    game.headers["Date"] = datetime.now().strftime("%Y.%m.%d")
+    new_pgn.write(str(game) + "\n\n")
+    new_pgn.close()
+    pyperclip.copy(env.board.fen())
+
+
 def find_pgn_files(directory, pattern='*.pgn'):
-    files = []
-    for root, dirnames, filenames in os.walk(directory):
-        for filename in fnmatch.filter(filenames, pattern):
-            files.append(os.path.join(root, filename))
+    dir_pattern = os.path.join(directory, pattern)
+    files = list(sorted(glob(dir_pattern)))
     return files
 
 
@@ -30,10 +41,17 @@ def get_next_generation_model_dirs(rc: ResourceConfig):
 
 
 def write_game_data_to_file(path, data):
-    with open(path, "wt") as f:
-        json.dump(data, f)
+    try:
+        with open(path, "wt") as f:
+            json.dump(data, f)
+    except Exception as e:
+        print(e)
 
 
 def read_game_data_from_file(path):
-    with open(path, "rt") as f:
-        return json.load(f)
+    try:
+        with open(path, "rt") as f:
+            return json.load(f)
+    except Exception as e:
+        print(e)
+
