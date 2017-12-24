@@ -54,7 +54,7 @@ class OptimizeWorker:
             #if last_save_step + self.config.trainer.save_model_steps < total_steps:
             self.save_current_model()
             last_save_step = total_steps
-            while len(self.dataset) > 100000:
+            while len(self.dataset[0]) > 100000:
                 a,b,c=self.dataset
                 a.popleft()
                 b.popleft()
