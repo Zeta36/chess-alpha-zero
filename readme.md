@@ -24,9 +24,11 @@ Environment
 
 Using supervised learning on about 10k games, I trained a model (7 residual blocks of 256 filters) to a guesstimate of 1200 elo with 1200 sims/move. One of the strengths of MCTS is it scales quite well with computing power.
 
-Here you can see an example of a game I (white, ~2000 elo) played against the model in this repo (black):
+Here you can see an example where I (black) played against the model in the repo (white):
 
 ![img](https://user-images.githubusercontent.com/4205182/34333105-ada817c6-e8fe-11e7-8c01-5958aaf264c1.gif)
+
+Here you can see an example of a game where I (white, ~2000 elo) played against the model in this repo (black):
 
 ![img](https://user-images.githubusercontent.com/4205182/34323276-ecd2a7b6-e806-11e7-856a-4e2394bd75df.gif)
 
