@@ -26,6 +26,8 @@ Using supervised learning on about 10k games, I trained a model (7 residual bloc
 
 Here you can see an example of a game I (white, ~2000 elo) played against the model in this repo (black):
 
+![img](https://user-images.githubusercontent.com/4205182/34333105-ada817c6-e8fe-11e7-8c01-5958aaf264c1.gif)
+
 ![img](https://user-images.githubusercontent.com/4205182/34323276-ecd2a7b6-e806-11e7-856a-4e2394bd75df.gif)
 
 ### First "good" results
