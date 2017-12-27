@@ -29,10 +29,12 @@ def start(config: Config):
         elif words[0] == "ucinewgame":
             env.reset()
         elif words[0] == "position":
-            words=words[1].split(" ",1)
+            words = words[1].split(" ",1)
             if words[0] == "startpos":
                 env.reset()
             else:
+                if words[0] == "fen": # skip extraneous word
+                    words = words[1].split(' ',1)
                 fen = words[0]
                 for _ in range(5):
                     words = words[1].split(' ',1)
