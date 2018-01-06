@@ -114,19 +114,17 @@ Setup
 pip install -r requirements.txt
 ```
 
-If you want to use GPU,
+If you want to use GPU, follow [these instructions](https://www.tensorflow.org/install/) to install with pip3.
 
-```bash
-pip install tensorflow-gpu
-```
-
-Make sure Keras is using Tensorflow and you have Python 3.6.3+.
+Make sure Keras is using Tensorflow and you have Python 3.6.3+. Depending on your environment, you may have to run python3/pip3 instead of python/pip.
 
 
 Basic Usage
 ------------
 
 For training model, execute `Self-Play`, `Trainer` and `Evaluator`. 
+
+**Note**: Make sure you are running the scripts from the top-level directory of this repo, i.e. `python src/chess_zero/run.py opt`, not `python run.py opt`.
 
 
 Self-Play
