@@ -1,8 +1,15 @@
+"""
+Everything related to configuration of running this application
+"""
+
 import os
 import numpy as np
 
 
 class PlayWithHumanConfig:
+    """
+    Config for allowing human to play against an agent using uci
+    """
     def __init__(self):
         self.simulation_num_per_move = 1200
         self.threads_multiplier = 2

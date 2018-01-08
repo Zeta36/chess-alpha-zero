@@ -1,3 +1,7 @@
+"""
+Manages starting off each of the separate processes involved in ChessZero -
+self play, training, and evaluation.
+"""
 import argparse
 
 from logging import getLogger,disable
@@ -11,6 +15,10 @@ CMD_LIST = ['self', 'opt', 'eval', 'sl', 'uci']
 
 
 def create_parser():
+    """
+    Parses each of the arguments from the command line
+    :return ArgumentParser representing the command line arguments that were supplied to the command line:
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("cmd", help="what to do", choices=CMD_LIST)
     parser.add_argument("--new", help="run from new best model", action="store_true")
@@ -20,6 +28,12 @@ def create_parser():
 
 
 def setup(config: Config, args):
+    """
+    Sets up a new config by creating the required directories and setting up logging.
+
+    :param Config config: config to create directories for and to set config from based on the args
+    :param ArgumentParser args: args to use to control config.
+    """
     config.opts.new = args.new
     if args.total_step is not None:
         config.trainer.start_total_steps = args.total_step
@@ -28,6 +42,11 @@ def setup(config: Config, args):
 
 
 def start():
+    """
+    Starts one of the processes based on command line arguments.
+
+    :return : the worker class that was started
+    """
     parser = create_parser()
     args = parser.parse_args()
     config_type = args.type
