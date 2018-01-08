@@ -1,3 +1,7 @@
+"""
+Encapsulates the functionality for representing
+and operating on the chess environment.
+"""
 import enum
 import chess.pgn
 import numpy as np
@@ -21,7 +25,16 @@ ind = {pieces_order[i]: i for i in range(12)}
 
 
 class ChessEnv:
+    """
+    Represents a chess environment where a chess game is played/
 
+    Attributes:
+        :ivar chess.Board board: current board state
+        :ivar int num_halfmoves: number of half moves performed in total by each player
+        :ivar Winner winner: winner of the game
+        :ivar boolean resigned: whether non-winner resigned
+        :ivar TODO: result: not sure
+    """
     def __init__(self):
         self.board = None
         self.num_halfmoves = 0
@@ -30,6 +43,10 @@ class ChessEnv:
         self.result = None
 
     def reset(self):
+        """
+        Resets to begin a new game
+        :return ChessEnv: self
+        """
         self.board = chess.Board()
         self.num_halfmoves = 0
         self.winner = None
@@ -37,6 +54,11 @@ class ChessEnv:
         return self
 
     def update(self, board):
+        """
+        Like reset, but resets the position to whatever was supplied for board
+        :param chess.Board board: position to reset to
+        :return ChessEnv: self
+        """
         self.board = chess.Board(board)
         self.winner = None
         self.resigned = False
@@ -56,9 +78,11 @@ class ChessEnv:
 
     def step(self, action: str, check_over = True):
         """
-        :param action:
-        :param check_over:
-        :return:
+
+        Takes an action and updates the game state
+
+        :param str action: action to take in uci notation
+        :param boolean check_over: whether to check if game is over
         """
         if check_over and action is None:
             self._resign()
@@ -134,6 +158,10 @@ class ChessEnv:
         return replace_tags_board(self.board.fen())
 
     def canonical_input_planes(self):
+        """
+
+        :return: a representation of the board using an (18, 8, 8) shape, good as input to a policy / value network
+        """
         return canon_input_planes(self.board.fen())
 
     def testeval(self, absolute=False) -> float:
@@ -201,6 +229,11 @@ def check_current_planes(realfen, planes):
 
 
 def canon_input_planes(fen):
+    """
+
+    :param fen:
+    :return : (18, 8, 8) representation of the game state
+    """
     fen = maybe_flip_fen(fen, is_black_turn(fen))
     return all_input_planes(fen)
 
