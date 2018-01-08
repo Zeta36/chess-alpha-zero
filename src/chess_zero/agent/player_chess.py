@@ -1,3 +1,7 @@
+"""
+This encapsulates all of the functionality related to actually playing the game itself, not just
+making / training predictions.
+"""
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from logging import getLogger
@@ -14,12 +18,18 @@ logger = getLogger(__name__)
 
 # these are from AGZ nature paper
 class VisitStats:
+    """
+    TODO: Not sure. Seems to hold statistics related to which parts of the action space have been visited?
+    """
     def __init__(self):
         self.a = defaultdict(ActionStats)
         self.sum_n = 0
 
 
 class ActionStats:
+    """
+        TODO: Not sure. Seems to hold statistics related to which actions have been performed?
+        """
     def __init__(self):
         self.n = 0
         self.w = 0
@@ -27,6 +37,21 @@ class ActionStats:
 
 
 class ChessPlayer:
+    """
+    Plays the actual game of chess, choosing moves based on policy and value network predictions coming
+    from a learned model on the other side of a pipe.
+
+    Attributes:
+        :ivar list: stores info on the moves that have been performed during the game
+        :ivar Config config: stores the whole config for how to run
+        :ivar PlayConfig play_config: just stores the PlayConfig to use to play the game. Taken from the config
+            if not specifically specified.
+        :ivar labels_n: TODO: Something to do with representing the chess game
+        :ivar labels: TODO: also something to do with representing the game
+        :ivar dict() move_lookup: TODO: seems to provide some sort of fast lookup of info for each move
+        :ivar list(Connection) pipe_pool: the pipes to send the observations of the game to
+        :ivar dict node_lock: TODO: not sure, something relating to threading / using the pipes?
+    """
     # dot = False
     def __init__(self, config: Config, pipes=None, play_config=None, dummy=False):
         self.moves = []
@@ -43,6 +68,9 @@ class ChessPlayer:
         self.node_lock = defaultdict(Lock)
 
     def reset(self):
+        """
+        TODO: Resets the game to the initial state?
+        """
         self.tree = defaultdict(VisitStats)
 
     def deboog(self, env):
@@ -65,6 +93,15 @@ class ChessPlayer:
                   f'p: {s[3]:7.5f}')
 
     def action(self, env, can_stop = True) -> str:
+        """
+        Figures out the next best move
+        within the specified environment and returns a string describing the action to take.
+
+        :param ChessEnv env: environment in which to figure out the action
+        :param boolean can_stop: whether we are allowed to take no action (return None)
+        :return: None if no action should be taken (indicating a resign). Otherwise, returns a string
+            indicating the action to take in uci format
+        """
         self.reset()
 
         # for tl in range(self.play_config.thinking_loop):
@@ -82,6 +119,12 @@ class ChessPlayer:
             return self.config.labels[my_action]
 
     def search_moves(self, env) -> (float, float):
+        """
+        Does the search for the best moves and returns a list containing the best ones TODO: check return format.
+
+        :param ChessEnv env: env to search for moves within
+        :return list(?): a list of the values of each of the moves. Not sure what format.
+        """
         futures = []
         with ThreadPoolExecutor(max_workers=self.play_config.search_threads) as executor:
             for _ in range(self.play_config.simulation_num_per_move):
@@ -95,7 +138,13 @@ class ChessPlayer:
         """
         Q, V is value for this Player(always white).
         P is value for the player of next_player (black or white)
-        :return: leaf value
+
+        This method searches for possible moves, adds them to a search tree, and eventually returns the
+        best move that was found during the search.
+
+        :param ChessEnv env: environment in which to search for the move
+        :param boolean is_root_node:
+        :return str|int: the best move? 0 if draw, -1 if loss. Str encoding of move otherwise.
         """
         if env.done:
             if env.winner == Winner.draw:
@@ -143,6 +192,9 @@ class ChessPlayer:
         """ expand new leaf, this is called only once per state
         this is called with state locked
         insert P(a|s), return leaf_v
+
+        This gets a prediction for the policy and value of the state within the given env
+        :return (float, float): the policy and value predictions for this state
         """
         state_planes = env.canonical_input_planes()
 
@@ -155,6 +207,11 @@ class ChessPlayer:
         return leaf_p, leaf_v
 
     def predict(self, state_planes):
+        """
+        Gets a prediction from the policy and value network
+        :param state_planes: the observation state represented as planes
+        :return: prediction  TODO: not sure - policy and value network outputs for the state?
+        """
         pipe = self.pipe_pool.pop()
         pipe.send(state_planes)
         ret = pipe.recv()
@@ -163,6 +220,14 @@ class ChessPlayer:
 
     #@profile
     def select_action_q_and_u(self, env, is_root_node) -> chess.Move:
+        """
+        Picks the next action by looking at the already
+        predicted values of various actions. TODO: I think this expects that the search has already been done.
+
+        :param Environment env: env to look for the next moves within
+        :param is_root_node: TODO:
+        :return chess.Move: the move to perform
+        """
         # this method is called with state locked
         state = state_key(env)
 
@@ -199,6 +264,12 @@ class ChessPlayer:
         return best_a
 
     def apply_temperature(self, policy, turn):
+        """
+        Applies a random fluctuation to probability of choosing various actions
+        :param policy: TODO: probably a list of policy network values for each action
+        :param turn: TODO:
+        :return: policy, randomly perturbed.
+        """
         tau = np.power(self.play_config.tau_decay_rate, turn + 1)
         if tau < 0.1:
             tau = 0
@@ -214,7 +285,7 @@ class ChessPlayer:
 
     def calc_policy(self, env):
         """calc π(a|s0)
-        :return:
+        :return: TODO:
         """
         state = state_key(env)
         my_visitstats = self.tree[state]
@@ -226,6 +297,15 @@ class ChessPlayer:
         return policy
 
     def sl_action(self, observation, my_action, weight=1):
+        """
+        Returns the next action to take
+
+        TODO: figure these out vvvv
+        :param observation:
+        :param my_action:
+        :param weight:
+        :return:
+        """
         policy = np.zeros(self.labels_n)
 
         k = self.move_lookup[chess.Move.from_uci(my_action)]
@@ -236,6 +316,8 @@ class ChessPlayer:
 
     def finish_game(self, z):
         """
+        When game is done, updates the value of all past moves based on the result.
+
         :param self:
         :param z: win=1, lose=-1, draw=0
         :return:
@@ -245,5 +327,10 @@ class ChessPlayer:
 
 
 def state_key(env: ChessEnv) -> str:
+    """
+    TODO: not sure - probably returns some text representation of the board?
+    :param ChessEnv env:
+    :return str:
+    """
     fen = env.board.fen().rsplit(' ', 1) # drop the move clock
     return fen[0]

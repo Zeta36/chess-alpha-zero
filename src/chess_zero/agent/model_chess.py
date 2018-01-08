@@ -1,3 +1,7 @@
+"""
+Defines the actual model for making policy and value predictions given an observation.
+"""
+
 import ftplib
 import hashlib
 import json
@@ -21,6 +25,16 @@ logger = getLogger(__name__)
 
 
 class ChessModel:
+    """
+    The model which can be trained to take observations of a game of chess and return value and policy
+    predictions.
+
+    Attributes:
+        :ivar Config config: configuration to use
+        :ivar Model model: the Keras model to use for predictions
+        :ivar digest: TODO
+        :ivar ChessModelAPI api: the api to use to listen for and then return this models predictions (on a pipe).
+    """
     def __init__(self, config: Config):
         self.config = config
         self.model = None  # type: Model
@@ -28,12 +42,22 @@ class ChessModel:
         self.api = None
 
     def get_pipes(self, num = 1):
+        """
+        Creates a list of pipes on which observations of the game state will be listened for. Whenever
+        an observation comes in, returns policy and value network predictions on that pipe.
+
+        :param int num: number of pipes to create
+        :return str(Connection): a list of all connections to the pipes that were created
+        """
         if self.api is None:
-            self.api = ChessModelAPI(self.config, self)
+            self.api = ChessModelAPI(self)
             self.api.start()
-        return [self.api.get_pipe() for _ in range(num)]
+        return [self.api.create_pipe() for _ in range(num)]
 
     def build(self):
+        """
+        Builds the full Keras model and stores it in self.model.
+        """
         mc = self.config.model
         in_x = x = Input((18, 8, 8))
 
@@ -95,6 +119,12 @@ class ChessModel:
             return m.hexdigest()
 
     def load(self, config_path, weight_path):
+        """
+
+        :param str config_path: path to the file containing the entire configuration
+        :param str weight_path: path to the file containing the model weights
+        :return: true iff successful in loading
+        """
         mc = self.config.model
         resources = self.config.resource
         if mc.distributed and config_path == resources.model_best_config_path:
@@ -123,6 +153,11 @@ class ChessModel:
             return False
 
     def save(self, config_path, weight_path):
+        """
+
+        :param str config_path: path to save the entire configuration to
+        :param str weight_path: path to save the model weights to
+        """
         logger.debug(f"save model to {config_path}")
         with open(config_path, "wt") as f:
             json.dump(self.model.get_config(), f)

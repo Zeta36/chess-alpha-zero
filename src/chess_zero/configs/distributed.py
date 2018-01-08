@@ -1,3 +1,7 @@
+"""
+Contains the set of configs to use for the "distributed" version of the app, to use when running
+it in a distributed environment (with multiple GPUs)
+"""
 class EvaluateConfig:
     def __init__(self):
         self.vram_frac = 1.0

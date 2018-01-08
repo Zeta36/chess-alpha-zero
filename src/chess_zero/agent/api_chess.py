@@ -1,3 +1,8 @@
+"""
+Defines the process which will listen on the pipe for
+an observation of the game state and return a prediction from the policy and
+value network.
+"""
 from multiprocessing import connection, Pipe
 from threading import Thread
 
@@ -7,22 +12,47 @@ from chess_zero.config import Config
 
 
 class ChessModelAPI:
+    """
+    Defines the process which will listen on the pipe for
+    an observation of the game state and return the predictions from the policy and
+    value networks.
+    Attributes:
+        :ivar ChessModel agent_model: ChessModel to use to make predictions.
+        :ivar list(Connection): list of pipe connections to listen on and put predictions on.
+    """
     # noinspection PyUnusedLocal
-    def __init__(self, config: Config, agent_model):  # ChessModel
+    def __init__(self, agent_model):  # ChessModel
+        """
+
+        :param ChessModel agent_model: trained model to use to make predictions
+        """
         self.agent_model = agent_model
         self.pipes = []
 
     def start(self):
-        prediction_worker = Thread(target=self.predict_batch_worker, name="prediction_worker")
+        """
+        Starts a thread to listen on the pipe and make predictions
+        :return:
+        """
+        prediction_worker = Thread(target=self._predict_batch_worker, name="prediction_worker")
         prediction_worker.daemon = True
         prediction_worker.start()
 
-    def get_pipe(self):
+    def create_pipe(self):
+        """
+        Creates a new two-way pipe and returns the connection to one end of it (the other will be used
+        by this class)
+        :return Connection: the other end of this pipe.
+        """
         me, you = Pipe()
         self.pipes.append(me)
         return you
 
-    def predict_batch_worker(self):
+    def _predict_batch_worker(self):
+        """
+        Thread worker which listens on each pipe in self.pipes for an observation, and then outputs
+        the predictions for the policy and value networks when the observations come in. Repeats.
+        """
         while True:
             ready = connection.wait(self.pipes,timeout=0.001)
             if not ready:
