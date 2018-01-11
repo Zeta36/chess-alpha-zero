@@ -33,7 +33,7 @@ class ChessEnv:
         :ivar int num_halfmoves: number of half moves performed in total by each player
         :ivar Winner winner: winner of the game
         :ivar boolean resigned: whether non-winner resigned
-        :ivar TODO: result: not sure
+        :ivar str result: str encoding of the result, 1-0, 0-1, or 1/2-1/2
     """
     def __init__(self):
         self.board = None

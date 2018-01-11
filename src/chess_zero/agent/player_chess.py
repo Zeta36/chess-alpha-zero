@@ -19,7 +19,13 @@ logger = getLogger(__name__)
 # these are from AGZ nature paper
 class VisitStats:
     """
-    TODO: Not sure. Seems to hold statistics related to which parts of the action space have been visited?
+    Holds information for use by the AGZ MCTS algorithm on all moves from a given game state (this is generally used inside
+    of a defaultdict where a game state in FEN format maps to a VisitStats object).
+    Attributes:
+        :ivar defaultdict(ActionStats) a: known stats for all actions to take from the the state represented by
+            this visitstats.
+        :ivar int sum_n: sum of the n value for each of the actions in self.a, representing total
+            visits over all actions in self.a.
     """
     def __init__(self):
         self.a = defaultdict(ActionStats)
@@ -28,12 +34,25 @@ class VisitStats:
 
 class ActionStats:
     """
-        TODO: Not sure. Seems to hold statistics related to which actions have been performed?
-        """
+    Holds the stats needed for the AGZ MCTS algorithm for a specific action taken from a specific state.
+
+    Attributes:
+        :ivar int n: number of visits to this action by the algorithm
+        :ivar float w: every time a child of this action is visited by the algorithm,
+            this accumulates the value (calculated from the value network) of that child. This is modified
+            by a virtual loss which encourages threads to explore different nodes.
+        :ivar float q: mean action value (total value from all visits to actions
+            AFTER this action, divided by the total number of visits to this action)
+            i.e. it's just w / n.
+        :ivar float p: prior probability of taking this action, given
+            by the policy network.
+
+    """
     def __init__(self):
         self.n = 0
         self.w = 0
         self.q = 0
+        self.p = 0
 
 
 class ChessPlayer:
@@ -46,16 +65,21 @@ class ChessPlayer:
         :ivar Config config: stores the whole config for how to run
         :ivar PlayConfig play_config: just stores the PlayConfig to use to play the game. Taken from the config
             if not specifically specified.
-        :ivar labels_n: TODO: Something to do with representing the chess game
-        :ivar labels: TODO: also something to do with representing the game
-        :ivar dict() move_lookup: TODO: seems to provide some sort of fast lookup of info for each move
-        :ivar list(Connection) pipe_pool: the pipes to send the observations of the game to
-        :ivar dict node_lock: TODO: not sure, something relating to threading / using the pipes?
+        :ivar int labels_n: length of self.labels.
+        :ivar list(str) labels: all of the possible move labels (like a1b1, a1c1, etc...)
+        :ivar dict(str,int) move_lookup: dict from move label to its index in self.labels
+        :ivar list(Connection) pipe_pool: the pipes to send the observations of the game to to get back
+            value and policy predictions from
+        :ivar dict(str,Lock) node_lock: dict from FEN game state to a Lock, indicating
+            whether that state is currently being explored by another thread.
+        :ivar VisitStats tree: holds all of the visited game states and actions
+            during the running of the AGZ algorithm
     """
     # dot = False
     def __init__(self, config: Config, pipes=None, play_config=None, dummy=False):
         self.moves = []
 
+        self.tree = defaultdict(VisitStats)
         self.config = config
         self.play_config = play_config or self.config.play
         self.labels_n = config.n_labels
@@ -69,7 +93,7 @@ class ChessPlayer:
 
     def reset(self):
         """
-        TODO: Resets the game to the initial state?
+        reset the tree to begin a new exploration of states
         """
         self.tree = defaultdict(VisitStats)
 
@@ -120,10 +144,13 @@ class ChessPlayer:
 
     def search_moves(self, env) -> (float, float):
         """
-        Does the search for the best moves and returns a list containing the best ones TODO: check return format.
+        Looks at all the possible moves using the AGZ MCTS algorithm
+         and finds the highest value possible move. Does so using multiple threads to get multiple
+         estimates from the AGZ MCTS algorithm so we can pick the best.
 
         :param ChessEnv env: env to search for moves within
-        :return list(?): a list of the values of each of the moves. Not sure what format.
+        :return (float,float): the maximum value of all values predicted by each thread,
+            and the first value that was predicted.
         """
         futures = []
         with ThreadPoolExecutor(max_workers=self.play_config.search_threads) as executor:
@@ -143,8 +170,9 @@ class ChessPlayer:
         best move that was found during the search.
 
         :param ChessEnv env: environment in which to search for the move
-        :param boolean is_root_node:
-        :return str|int: the best move? 0 if draw, -1 if loss. Str encoding of move otherwise.
+        :param boolean is_root_node: whether this is the root node of the search.
+        :return float: value of the move. This is calculated by getting a prediction
+            from the value network.
         """
         if env.done:
             if env.winner == Winner.draw:
@@ -210,7 +238,8 @@ class ChessPlayer:
         """
         Gets a prediction from the policy and value network
         :param state_planes: the observation state represented as planes
-        :return: prediction  TODO: not sure - policy and value network outputs for the state?
+        :return (float,float): policy (prior probability of taking the action leading to this state)
+            and value network (value of the state) prediction for this state.
         """
         pipe = self.pipe_pool.pop()
         pipe.send(state_planes)
@@ -221,12 +250,14 @@ class ChessPlayer:
     #@profile
     def select_action_q_and_u(self, env, is_root_node) -> chess.Move:
         """
-        Picks the next action by looking at the already
-        predicted values of various actions. TODO: I think this expects that the search has already been done.
+        Picks the next action to explore using the AGZ MCTS algorithm.
+
+        Picks based on the action which maximizes the maximum action value
+        (ActionStats.q) + an upper confidence bound on that action.
 
         :param Environment env: env to look for the next moves within
-        :param is_root_node: TODO:
-        :return chess.Move: the move to perform
+        :param is_root_node: whether this is for the root node of the MCTS search.
+        :return chess.Move: the move to explore
         """
         # this method is called with state locked
         state = state_key(env)
@@ -266,9 +297,10 @@ class ChessPlayer:
     def apply_temperature(self, policy, turn):
         """
         Applies a random fluctuation to probability of choosing various actions
-        :param policy: TODO: probably a list of policy network values for each action
-        :param turn: TODO:
-        :return: policy, randomly perturbed.
+        :param policy: list of probabilities of taking each action
+        :param turn: number of turns that have occurred in the game so far
+        :return: policy, randomly perturbed based on the temperature. High temp = more perturbation. Low temp
+            = less.
         """
         tau = np.power(self.play_config.tau_decay_rate, turn + 1)
         if tau < 0.1:
@@ -285,7 +317,7 @@ class ChessPlayer:
 
     def calc_policy(self, env):
         """calc π(a|s0)
-        :return: TODO:
+        :return list(float): a list of probabilities of taking each action, calculated using MCTS.
         """
         state = state_key(env)
         my_visitstats = self.tree[state]
@@ -298,13 +330,12 @@ class ChessPlayer:
 
     def sl_action(self, observation, my_action, weight=1):
         """
-        Returns the next action to take
+        Logs the action in self.moves
 
-        TODO: figure these out vvvv
-        :param observation:
-        :param my_action:
-        :param weight:
-        :return:
+        :param str observation: FEN format observation indicating the game state
+        :param str my_action: uci format action to take
+        :param float weight: weight to assign to the action when logging it in self.moves
+        :return str: the action, unmodified.
         """
         policy = np.zeros(self.labels_n)
 
@@ -328,9 +359,8 @@ class ChessPlayer:
 
 def state_key(env: ChessEnv) -> str:
     """
-    TODO: not sure - probably returns some text representation of the board?
-    :param ChessEnv env:
-    :return str:
+    :param ChessEnv env: env to encode
+    :return str: a str representation of the game state
     """
     fen = env.board.fen().rsplit(' ', 1) # drop the move clock
     return fen[0]

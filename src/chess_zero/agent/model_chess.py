@@ -32,7 +32,7 @@ class ChessModel:
     Attributes:
         :ivar Config config: configuration to use
         :ivar Model model: the Keras model to use for predictions
-        :ivar digest: TODO
+        :ivar digest: basically just a hash of the file containing the weights being used by this model
         :ivar ChessModelAPI api: the api to use to listen for and then return this models predictions (on a pipe).
     """
     def __init__(self, config: Config):

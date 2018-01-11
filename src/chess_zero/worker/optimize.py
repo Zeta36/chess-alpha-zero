@@ -37,17 +37,15 @@ class OptimizeWorker:
     Attributes:
         :ivar Config config: config for this worker
         :ivar ChessModel model: model to train
-        :ivar set(str) loaded_filenames: set of filenames that have been loaded TODO: containing what?
         :ivar dequeue,dequeue,dequeue dataset: tuple of dequeues where each dequeue contains game states,
-            target policy network values, and target value network values (respectively)
+            target policy network values (calculated based on visit stats
+                for each state during the game), and target value network values (calculated based on
+                    who actually won the game after that state)
         :ivar ProcessPoolExecutor executor: executor for running all of the training processes
     """
     def __init__(self, config: Config):
         self.config = config
         self.model = None  # type: ChessModel
-        self.loaded_filenames = set()
-        # NOTE: It seems this is not actually used
-        # self.loaded_data = deque(maxlen=self.config.trainer.dataset_size) # this should just be a ring buffer i.e. queue of length 500,000 in AZ
         self.dataset = deque(),deque(),deque()
         self.executor = ProcessPoolExecutor(max_workers=config.trainer.cleaning_processes)
 

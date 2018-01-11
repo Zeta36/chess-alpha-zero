@@ -1,3 +1,6 @@
+"""
+Contains the worker for doing supervised learning from game data.
+"""
 import os
 import re
 from concurrent.futures import ProcessPoolExecutor, as_completed

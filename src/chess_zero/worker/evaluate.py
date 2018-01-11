@@ -30,7 +30,8 @@ class EvaluateWorker:
         :ivar PlayConfig config: PlayConfig to use to determine how to play, taken from config.eval.play_config
         :ivar ChessModel current_model: currently chosen best model
         :ivar Manager m: multiprocessing manager
-        :ivar list(Connection) cur_pipes: TODO: pipes to send/receive what on?
+        :ivar list(Connection) cur_pipes: pipes on which the current best ChessModel is listening which will be used to
+            make predictions while playing a game.
     """
     def __init__(self, config: Config):
         """
