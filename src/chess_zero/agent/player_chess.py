@@ -317,7 +317,7 @@ class ChessPlayer:
 
     def calc_policy(self, env):
         """calc π(a|s0)
-        :return list(float): a list of probabilities of taking each action, calculated using MCTS.
+        :return list(float): a list of probabilities of taking each action, calculated based on visit counts.
         """
         state = state_key(env)
         my_visitstats = self.tree[state]
@@ -330,11 +330,11 @@ class ChessPlayer:
 
     def sl_action(self, observation, my_action, weight=1):
         """
-        Logs the action in self.moves
+        Logs the action in self.moves. Useful for generating a game using game data.
 
         :param str observation: FEN format observation indicating the game state
         :param str my_action: uci format action to take
-        :param float weight: weight to assign to the action when logging it in self.moves
+        :param float weight: weight to assign to the taken action when logging it in self.moves
         :return str: the action, unmodified.
         """
         policy = np.zeros(self.labels_n)

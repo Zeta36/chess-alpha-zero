@@ -1,5 +1,5 @@
 """
-Encapsulates the worker which trains ChessModels using game data
+Encapsulates the worker which trains ChessModels using game data from recorded games from a file.
 """
 import os
 from collections import deque

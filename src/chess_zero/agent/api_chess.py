@@ -18,7 +18,7 @@ class ChessModelAPI:
     value networks.
     Attributes:
         :ivar ChessModel agent_model: ChessModel to use to make predictions.
-        :ivar list(Connection): list of pipe connections to listen on and put predictions on.
+        :ivar list(Connection): list of pipe connections to listen for states on and return predictions on.
     """
     # noinspection PyUnusedLocal
     def __init__(self, agent_model):  # ChessModel
