@@ -1,3 +1,6 @@
+"""
+Contains the set of configs to use for the "normal" version of the app.
+"""
 class EvaluateConfig:
     def __init__(self):
         self.vram_frac = 1.0

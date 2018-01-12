@@ -1,3 +1,6 @@
+"""
+Contains the worker for training the model using recorded game data rather than self-play
+"""
 import os
 import re
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -23,6 +26,16 @@ def start(config: Config):
 
 
 class SupervisedLearningWorker:
+    """
+    Worker which performs supervised learning on recorded games.
+
+    Attributes:
+        :ivar Config config: config for this worker
+        :ivar list((str,list(float)) buffer: buffer containing the data to use for training -
+            each entry contains a FEN encoded game state and a list where every index corresponds
+            to a chess move. The move that was taken in the actual game is given a value (based on
+            the player elo), all other moves are given a 0.
+    """
     def __init__(self, config: Config):
         """
         :param config:
@@ -31,6 +44,9 @@ class SupervisedLearningWorker:
         self.buffer = []
 
     def start(self):
+        """
+        Start the actual training.
+        """
         self.buffer = []
         # noinspection PyAttributeOutsideInit
         self.idx = 0
@@ -52,6 +68,10 @@ class SupervisedLearningWorker:
             self.flush_buffer()
 
     def get_games_from_all_files(self):
+        """
+        Loads game data from pgn files
+        :return list(chess.pgn.Game): the games
+        """
         files = find_pgn_files(self.config.resource.play_data_dir)
         print(files)
         games = []
@@ -61,11 +81,20 @@ class SupervisedLearningWorker:
         return games
 
     def save_data(self, data):
+        """
+
+        :param (str,list(float)) data: a FEN encoded game state and a list where every index corresponds
+            to a chess move. The move that was taken in the actual game is given a value (based on
+            the player elo), all other moves are given a 0.
+        """
         self.buffer += data
         if self.idx % self.config.play_data.sl_nb_game_in_file == 0:
             self.flush_buffer()
 
     def flush_buffer(self):
+        """
+        Clears out the moves loaded into the buffer and saves the to file.
+        """
         rc = self.config.resource
         game_id = datetime.now().strftime("%Y%m%d-%H%M%S.%f")
         path = os.path.join(rc.play_data_dir, rc.play_data_filename_tmpl % game_id)
@@ -76,6 +105,11 @@ class SupervisedLearningWorker:
 
 
 def get_games_from_file(filename):
+    """
+
+    :param str filename: file containing the pgn game data
+    :return list(pgn.Game): chess games in that file
+    """
     pgn = open(filename, errors='ignore')
     offsets = list(chess.pgn.scan_offsets(pgn))
     n = len(offsets)
@@ -93,6 +127,12 @@ def clip_elo_policy(config, elo):
 
 
 def get_buffer(config, game) -> (ChessEnv, list):
+    """
+    Gets data to load into the buffer by playing a game using PGN data.
+    :param Config config: config to use to play the game
+    :param pgn.Game game: game to play
+    :return list(str,list(float)): data from this game for the SupervisedLearningWorker.buffer
+    """
     env = ChessEnv().reset()
     white = ChessPlayer(config, dummy=True)
     black = ChessPlayer(config, dummy=True)

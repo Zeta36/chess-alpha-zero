@@ -1,3 +1,7 @@
+"""
+Utility methods for playing an actual game as a human against a model.
+"""
+
 import sys
 from logging import getLogger
 

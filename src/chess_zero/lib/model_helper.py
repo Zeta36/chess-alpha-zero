@@ -1,3 +1,7 @@
+"""
+Helper methods for working with trained models.
+"""
+
 from logging import getLogger
 
 logger = getLogger(__name__)

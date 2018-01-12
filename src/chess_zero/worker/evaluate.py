@@ -1,3 +1,7 @@
+"""
+Encapsulates the worker which evaluates newly-trained models and picks the best one
+"""
+
 import os
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from logging import getLogger
@@ -18,9 +22,20 @@ def start(config: Config):
     return EvaluateWorker(config).start()
 
 class EvaluateWorker:
+    """
+    Worker which evaluates trained models and keeps track of the best one
+
+    Attributes:
+        :ivar Config config: config to use for evaluation
+        :ivar PlayConfig config: PlayConfig to use to determine how to play, taken from config.eval.play_config
+        :ivar ChessModel current_model: currently chosen best model
+        :ivar Manager m: multiprocessing manager
+        :ivar list(Connection) cur_pipes: pipes on which the current best ChessModel is listening which will be used to
+            make predictions while playing a game.
+    """
     def __init__(self, config: Config):
         """
-        :param config:
+        :param config: Config to use to control how evaluation should work
         """
         self.config = config
         self.play_config = config.eval.play_config
@@ -29,6 +44,10 @@ class EvaluateWorker:
         self.cur_pipes = self.m.list([self.current_model.get_pipes(self.play_config.search_threads) for _ in range(self.play_config.max_processes)])
 
     def start(self):
+        """
+        Start evaluation, endlessly loading the latest models from the directory which stores them and
+        checking if they do better than the current model, saving the result in self.current_model
+        """
         while True:
             ng_model, model_dir = self.load_next_generation_model()
             logger.debug(f"start evaluate model {model_dir}")
@@ -40,6 +59,12 @@ class EvaluateWorker:
             self.move_model(model_dir)
 
     def evaluate_model(self, ng_model):
+        """
+        Given a model, evaluates it by playing a bunch of games against the current model.
+
+        :param ChessModel ng_model: model to evaluate
+        :return: true iff this model is better than the current_model
+        """
         ng_pipes = self.m.list([ng_model.get_pipes(self.play_config.search_threads) for _ in range(self.play_config.max_processes)])
 
         futures = []
@@ -77,16 +102,29 @@ class EvaluateWorker:
         return win_rate >= self.config.eval.replace_rate
 
     def move_model(self, model_dir):
+        """
+        Moves the newest model to the specified directory
+
+        :param file model_dir: directory where model should be moved
+        """
         rc = self.config.resource
         new_dir = os.path.join(rc.next_generation_model_dir, "copies", model_dir.name)
         os.rename(model_dir, new_dir)
 
     def load_current_model(self):
+        """
+        Loads the best model from the standard directory.
+        :return ChessModel: the model
+        """
         model = ChessModel(self.config)
         load_best_model_weight(model)
         return model
 
     def load_next_generation_model(self):
+        """
+        Loads the next generation model from the standard directory
+        :return (ChessModel, file): the model and the directory that it was in
+        """
         rc = self.config.resource
         while True:
             dirs = get_next_generation_model_dirs(self.config.resource)
@@ -103,6 +141,17 @@ class EvaluateWorker:
 
 
 def play_game(config, cur, ng, current_white: bool) -> (float, ChessEnv, bool):
+    """
+    Plays a game against models cur and ng and reports the results.
+
+    :param Config config: config for how to play the game
+    :param ChessModel cur: should be the current model
+    :param ChessModel ng: should be the next generation model
+    :param bool current_white: whether cur should play white or black
+    :return (float, ChessEnv, bool): the score for the ng model
+        (0 for loss, .5 for draw, 1 for win), the env after the game is finished, and a bool
+        which is true iff cur played as white in that game.
+    """
     cur_pipes = cur.pop()
     ng_pipes = ng.pop()
     env = ChessEnv().reset()

@@ -1,8 +1,16 @@
+"""
+Everything related to configuration of running this application
+"""
+
 import os
 import numpy as np
 
 
 class PlayWithHumanConfig:
+    """
+    Config for allowing human to play against an agent using uci
+
+    """
     def __init__(self):
         self.simulation_num_per_move = 1200
         self.threads_multiplier = 2
@@ -30,6 +38,9 @@ class Options:
 
 
 class ResourceConfig:
+    """
+    Config describing all of the directories and resources needed during running this project
+    """
     def __init__(self):
         self.project_dir = os.environ.get("PROJECT_DIR", _project_dir())
         self.data_dir = os.environ.get("DATA_DIR", _data_dir())
@@ -63,6 +74,11 @@ class ResourceConfig:
 
 
 def flipped_uci_labels():
+    """
+    Seems to somehow transform the labels used for describing the universal chess interface format, putting
+    them into a returned list.
+    :return:
+    """
     def repl(x):
         return "".join([(str(9 - int(a)) if a.isdigit() else a) for a in x])
 
@@ -70,6 +86,10 @@ def flipped_uci_labels():
 
 
 def create_uci_labels():
+    """
+    Creates the labels for the universal chess interface into an array and returns them
+    :return:
+    """
     labels_array = []
     letters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
     numbers = ['1', '2', '3', '4', '5', '6', '7', '8']
@@ -104,12 +124,34 @@ def create_uci_labels():
 
 
 class Config:
+    """
+    Config describing how to run the application
+
+    Attributes (best guess so far):
+        :ivar list(str) labels: labels to use for representing the game using UCI
+        :ivar int n_lables: number of labels
+        :ivar list(str) flipped_labels: some transformation of the labels
+        :ivar int unflipped_index: idk
+        :ivar Options opts: options to use to configure this config
+        :ivar ResourceConfig resources: resources used by this config.
+        :ivar ModelConfig mode: config for the model to use
+        :ivar PlayConfig play: configuration for the playing of the game
+        :ivar PlayDataConfig play_date: configuration for the saved data from playing
+        :ivar TrainerConfig trainer: config for how training should go
+        :ivar EvaluateConfig eval: config for how evaluation should be done
+    """
     labels = create_uci_labels()
     n_labels = int(len(labels))
     flipped_labels = flipped_uci_labels()
     unflipped_index = None
 
     def __init__(self, config_type="mini"):
+        """
+
+        :param str config_type: one of "mini", "normal", or "distributed", representing the set of
+            configs to use for all of the config attributes. Mini is a small version, normal is the
+            larger version, and distributed is a version which runs across multiple GPUs it seems
+        """
         self.opts = Options()
         self.resource = ResourceConfig()
 
@@ -132,6 +174,11 @@ class Config:
 
     @staticmethod
     def flip_policy(pol):
+        """
+
+        :param pol policy to flip:
+        :return: the policy, flipped (for switching between black and white it seems)
+        """
         return np.asarray([pol[ind] for ind in Config.unflipped_index])
 
 

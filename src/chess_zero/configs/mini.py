@@ -1,3 +1,7 @@
+"""
+Contains the set of configs to use for the "mini" version of the app, which seems to be a smaller
+version of the agent that is easier and quicker to run locally
+"""
 class EvaluateConfig:
     def __init__(self):
         self.vram_frac = 1.0
