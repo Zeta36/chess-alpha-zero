@@ -11,7 +11,16 @@ https://arxiv.org/pdf/1712.01815.pdf. In fact, in chess AlphaZero outperformed S
 
 See the [wiki](https://github.com/Akababa/Chess-Zero/wiki) for more details.
 
-Note: <b>This project is still under construction!!</b>
+Note
+----
+
+I'm the creator of this repo. I (and some others collaborators did our best: https://github.com/Zeta36/chess-alpha-zero/graphs/contributors) but we found the self-play is too much costed for an only machine. Supervised learning worked fine but we never try the self-play by itself.
+
+Anyway I want to mention we have moved to a new repo where lot of people is working in a distributed version of AZ for chess (MCTS in C++): https://github.com/glinscott/leela-chess
+
+Project is almost done and everybody will be able to participate just by executing a pre-compiled windows (or Linux) application. A really great job and effort has been done is this project and I'm pretty sure we'll be able to simulate the DeepMind results in not too long time of distributed cooperation.
+
+So, I ask everybody that wish to see a UCI engine running a neural network to beat Stockfish go into that repo and help with his machine power.
 
 Environment
 -----------
