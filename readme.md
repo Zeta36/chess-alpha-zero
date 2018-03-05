@@ -1,4 +1,5 @@
-[![Binder](https://mybinder.org/badge.svg)](https://mybinder.org/v2/gh/kmader/chess-alpha-zero/master)
+[![Binder](https://mybinder.org/badge.svg)](https://mybinder.org/v2/gh/kmader/chess-alpha-zero/master?urlpath=lab)
+[![Demo Notebook](https://img.shields.io/badge/launch-demo_notebook-red.svg)](https://mybinder.org/v2/gh/kmader/chess-alpha-zero/master?filepath=notebooks%2Fdemo.ipynb)
 
 About
 =====
