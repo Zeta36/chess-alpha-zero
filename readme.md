@@ -1,3 +1,5 @@
+[![Binder](https://mybinder.org/badge.svg)](https://mybinder.org/v2/gh/kmader/chess-alpha-zero/master)
+
 About
 =====
 
@@ -6,7 +8,7 @@ Chess reinforcement learning by [AlphaGo Zero](https://deepmind.com/blog/alphago
 This project is based on these main resources:
 1) DeepMind's Oct 19th publication: [Mastering the Game of Go without Human Knowledge](https://www.nature.com/articles/nature24270.epdf?author_access_token=VJXbVjaSHxFoctQQ4p2k4tRgN0jAjWel9jnR3ZoTv0PVW4gB86EEpGqTRDtpIz-2rmo8-KG06gqVobU5NSCFeHILHcVFUeMsbvwS-lxjqQGg98faovwjxeTUgZAUMnRQ).
 2) The <b>great</b> Reversi development of the DeepMind ideas that @mokemokechicken did in his repo: https://github.com/mokemokechicken/reversi-alpha-zero
-3) DeepMind just released a new version of AlphaGo Zero (named now AlphaZero) where they master chess from scratch: 
+3) DeepMind just released a new version of AlphaGo Zero (named now AlphaZero) where they master chess from scratch:
 https://arxiv.org/pdf/1712.01815.pdf. In fact, in chess AlphaZero outperformed Stockfish after just 4 hours (300k steps) Wow!
 
 See the [wiki](https://github.com/Akababa/Chess-Zero/wiki) for more details.
@@ -110,7 +112,7 @@ Data
 * `data/model/next_generation/*`: next-generation models.
 * `data/play_data/play_*.json`: generated training data.
 * `logs/main.log`: log file.
-  
+
 If you want to train the model from the beginning, delete the above directories.
 
 How to use
@@ -131,7 +133,7 @@ Make sure Keras is using Tensorflow and you have Python 3.6.3+. Depending on you
 Basic Usage
 ------------
 
-For training model, execute `Self-Play`, `Trainer` and `Evaluator`. 
+For training model, execute `Self-Play`, `Trainer` and `Evaluator`.
 
 **Note**: Make sure you are running the scripts from the top-level directory of this repo, i.e. `python src/chess_zero/run.py opt`, not `python run.py opt`.
 
@@ -159,11 +161,11 @@ python src/chess_zero/run.py opt
 
 When executed, Training will start.
 A base model will be loaded from latest saved next-generation model. If not existed, BestModel is used.
-Trained model will be saved every epoch. 
+Trained model will be saved every epoch.
 
 ### options
 * `--type mini`: use mini config for testing, (see `src/chess_zero/configs/mini.py`)
-* `--total-step`: specify total step(mini-batch) numbers. The total step affects learning rate of training. 
+* `--total-step`: specify total step(mini-batch) numbers. The total step affects learning rate of training.
 
 Evaluator
 ---------
@@ -174,7 +176,7 @@ python src/chess_zero/run.py eval
 
 When executed, Evaluation will start.
 It evaluates BestModel and the latest next-generation model by playing about 200 games.
-If next-generation model wins, it becomes BestModel. 
+If next-generation model wins, it becomes BestModel.
 
 ### options
 * `--type mini`: use mini config for testing, (see `src/chess_zero/configs/mini.py`)
