@@ -111,8 +111,17 @@ def get_games_from_file(filename):
     :return list(pgn.Game): chess games in that file
     """
     pgn = open(filename, errors='ignore')
-    offsets = list(chess.pgn.scan_offsets(pgn))
+    offsets = []
+    while True:
+        offset = pgn.tell()
+        
+        headers = chess.pgn.read_headers(pgn)
+        if headers is None:
+           break
+
+        offsets.append(offset)
     n = len(offsets)
+                             
     print(f"found {n} games")
     games = []
     for offset in offsets:
