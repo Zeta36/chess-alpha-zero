@@ -131,8 +131,9 @@ def get_games_from_file(filename):
 
 
 def clip_elo_policy(config, elo):
-    return min(1, max(0, elo - config.play_data.min_elo_policy) / config.play_data.max_elo_policy)
-    # 0 until min_elo, 1 after max_elo, linear in between
+	# 0 until min_elo, 1 after max_elo, linear in between
+	return min(1, max(0, elo - config.play_data.min_elo_policy) / (
+				config.play_data.max_elo_policy - config.play_data.min_elo_policy))
 
 
 def get_buffer(config, game) -> (ChessEnv, list):
