@@ -1,6 +1,6 @@
 python-chess==0.25.1
 tensorflow-gpu==1.15.2
-keras
+keras==2.0.8
 profilehooks
 numpy
 pyperclip
